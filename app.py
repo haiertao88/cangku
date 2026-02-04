@@ -1,53 +1,108 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
-# 1. 设置 Streamlit 页面配置 (全宽模式)
+# 1. 设置 Streamlit 页面配置
 st.set_page_config(
     page_title="3D 智能堆码专家 V8.3 - Python版",
     layout="wide",
-    initial_sidebar_state="collapsed" # 默认收起 Streamlit 自带侧边栏，使用你原本的侧边栏
+    initial_sidebar_state="collapsed"
 )
 
-# 2. 注入 CSS 隐藏 Streamlit 原生元素，确保你的应用全屏显示
+# 2. 核心修复：注入 CSS 强制 iframe 全屏且不可滚动
 st.markdown("""
     <style>
-        /* 隐藏 Streamlit 顶栏、页脚和汉堡菜单 */
-        #MainMenu {visibility: hidden;}
-        header {visibility: hidden;}
-        footer {visibility: hidden;}
+        /* 隐藏 Streamlit 所有原生 UI */
+        #MainMenu, header, footer {visibility: hidden;}
         
-        /* 移除 Streamlit 默认的内边距，让你的应用填满屏幕 */
+        /* 移除 Streamlit 容器的所有内边距和滚动条 */
         .block-container {
-            padding-top: 0rem !important;
-            padding-bottom: 0rem !important;
-            padding-left: 0rem !important;
-            padding-right: 0rem !important;
+            padding: 0 !important;
+            margin: 0 !important;
             max-width: 100% !important;
+            overflow: hidden !important;
         }
         
-        /* 调整 iframe 容器 */
+        /* 禁止 Streamlit 主页面滚动 */
+        .main {
+            overflow: hidden !important;
+        }
+
+        /* 关键修复：强制 iframe 占满屏幕，脱离文档流 */
         iframe {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            border: none !important;
+            z-index: 99999; /* 确保在最上层 */
             display: block;
-            border: none;
-            width: 100%;
         }
     </style>
 """, unsafe_allow_html=True)
 
-# 3. 原始 HTML/JS/CSS 代码 (无损保留)
+# 3. HTML 代码 (包含内部滚动逻辑)
 html_code = r"""
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D 智能堆码专家 V8.3 - 工程增强版</title>
+    <title>3D 智能堆码专家 V8.3</title>
     <style>
-        html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
-        body { font-family: "PingFang SC", "Segoe UI", sans-serif; display: flex; background-color: #f4f7f6; }
-        #sidebar { width: 340px; height: 100vh; background: #ffffff; border-right: 1px solid #d1d9e6; padding: 18px; box-sizing: border-box; z-index: 100; display: flex; flex-direction: column; gap: 10px; box-shadow: 4px 0 15px rgba(0,0,0,0.05); overflow-y: auto; }
-        #viewport { flex-grow: 1; height: 100vh; position: relative; background: #eef2f3; cursor: crosshair; }
+        /* 全局重置：禁止 body 滚动 */
+        html, body { 
+            margin: 0; 
+            padding: 0; 
+            width: 100%; 
+            height: 100vh; /* 强制视口高度 */
+            overflow: hidden; /* 关键：防止整个页面出现滚动条 */
+        }
         
+        body { 
+            font-family: "PingFang SC", "Segoe UI", sans-serif; 
+            display: flex; 
+            background-color: #f4f7f6; 
+        }
+
+        /* 侧边栏：允许独立滚动 */
+        #sidebar { 
+            width: 340px; 
+            height: 100%; /* 继承 body 的 100vh */
+            background: #ffffff; 
+            border-right: 1px solid #d1d9e6; 
+            padding: 18px; 
+            box-sizing: border-box; 
+            z-index: 100; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 10px; 
+            box-shadow: 4px 0 15px rgba(0,0,0,0.05); 
+            
+            /* 关键：侧边栏独立滚动条 */
+            overflow-y: auto; 
+            flex-shrink: 0;
+        }
+
+        /* 视图区：禁止滚动 */
+        #viewport { 
+            flex-grow: 1; 
+            height: 100%; /* 继承 body 的 100vh */
+            position: relative; 
+            background: #eef2f3; 
+            cursor: crosshair; 
+            
+            /* 关键：防止视图区溢出导致滚动 */
+            overflow: hidden; 
+        }
+        
+        /* 美化滚动条 (Webkit) */
+        #sidebar::-webkit-scrollbar { width: 6px; }
+        #sidebar::-webkit-scrollbar-track { background: #f1f1f1; }
+        #sidebar::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+        #sidebar::-webkit-scrollbar-thumb:hover { background: #bbb; }
+
+        /* 以下保持原有样式不变 */
         .stats-card { background: #2c3e50; color: #ecf0f1; padding: 12px; border-radius: 8px; flex-shrink: 0; }
         .stats-item { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; }
         .efficiency-bar { height: 6px; background: #444; border-radius: 3px; overflow: hidden; }
@@ -58,7 +113,7 @@ html_code = r"""
         .input-item { flex: 1; display: flex; flex-direction: column; gap: 2px; }
         .input-item span { font-size: 10px; color: #7f8c8d; }
         
-        input[type="number"], select { width: 100%; padding: 6px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 12px; outline: none; background: white; }
+        input[type="number"], select { width: 100%; padding: 6px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 12px; outline: none; background: white; box-sizing: border-box; }
         input[type="range"] { width: 100%; cursor: pointer; height: 4px; background: #dfe6e9; border-radius: 2px; outline: none; }
 
         .upload-card { background: #f8faff; border: 1px solid #e1e8f0; border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
@@ -75,7 +130,8 @@ html_code = r"""
         .btn-hide { background: #ecf0f1; color: #7f8c8d; border: 1px solid #d1d9e6; }
         .btn-hide.active { background: #3498db; color: white; border-color: #2980b9; }
 
-        #mini-container { position: absolute; bottom: 20px; right: 20px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+        #mini-container { position: absolute; bottom: 20px; right: 20px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; pointer-events: none; }
+        #mini-container > * { pointer-events: auto; }
         #mini-viewport { width: 220px; height: 220px; background: #fff; border: 2px solid #3498db; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); overflow: hidden; }
         .checkbox-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #444; cursor: pointer; }
         
@@ -143,7 +199,7 @@ html_code = r"""
     </div>
 
     <div class="group-title">3. 交互设置</div>
-    <div class="btn-row">
+    <div class="btn-row" style="display:flex; gap:5px;">
         <button id="btn-logo-l1" class="btn-hide active" onclick="toggleLogoVisibility(1)">Logo正</button>
         <button id="btn-logo-l2" class="btn-hide active" onclick="toggleLogoVisibility(2)">Logo侧</button>
         <button id="btn-show-l1" class="btn-hide active" onclick="toggleLabelVisibility(1)">标签正</button>
@@ -161,6 +217,8 @@ html_code = r"""
     
     <button class="btn-update" onclick="updateAndRender()">执行计算 (或按回车)</button>
     <button class="btn-toggle" id="toggleBtn">开启/关闭纸箱</button>
+    
+    <div style="height: 50px;"></div>
 </div>
 
 <div id="viewport">
@@ -183,7 +241,6 @@ html_code = r"""
     let sizeMode = 'outer', flaps = [];
     const edgeMat = new THREE.LineBasicMaterial({ color: 0x000000 });
     
-    // 颜色库 (蓝, 橙, 绿, 红, 紫, 青)
     const layerColors = [0x3498db, 0xe67e22, 0x2ecc71, 0xe74c3c, 0x9b59b6, 0x1abc9c];
 
     function setSizeMode(m) {
@@ -207,6 +264,10 @@ html_code = r"""
 
     function toggleMiniViewManual() {
         document.getElementById('mini-container').style.display = document.getElementById('showMiniView').checked ? 'flex' : 'none';
+    }
+    
+    function resetMiniView() {
+        if(miniControls) miniControls.reset();
     }
 
     function updateOpacity() {
@@ -243,7 +304,7 @@ html_code = r"""
         s.position.copy(d1.clone().lerp(d2,0.5)).add(offD.clone().multiplyScalar(15)); g.add(s); return g;
     }
 
-    // --- 终极全排列算法 (Guillotine) ---
+    // --- Guillotine Algorithm ---
     const memo = {};
     function solveGuillotine(rectL, rectW, l, w) {
         const key = Math.round(rectL * 1000) + "x" + Math.round(rectW * 1000);
@@ -251,8 +312,6 @@ html_code = r"""
         if (rectL < Math.min(l, w) - 0.001 || rectW < Math.min(l, w) - 0.001) return { n: 0, items: [] };
 
         let bestSol = { n: 0, items: [] };
-
-        // 基础铺满
         let n_lw = Math.floor(rectL / l) * Math.floor(rectW / w);
         if (n_lw > bestSol.n) {
             let its = []; for(let i=0;i<Math.floor(rectL/l);i++) for(let j=0;j<Math.floor(rectW/w);j++) its.push({x:i*l, z:j*w, w:l, d:w});
@@ -264,7 +323,6 @@ html_code = r"""
             bestSol = {n: n_wl, items: its};
         }
 
-        // 策略1：垂直切割
         if (rectL >= l && rectW >= w) {
             let maxCols = Math.floor(rectL / l);
             for (let i = 1; i <= maxCols; i++) {
@@ -296,7 +354,6 @@ html_code = r"""
             }
         }
 
-        // 策略2：水平切割
         if (rectW >= w && rectL >= l) {
             let maxRows = Math.floor(rectW / w);
             for (let j = 1; j <= maxRows; j++) {
@@ -340,7 +397,6 @@ html_code = r"""
         const inputL=parseFloat(document.getElementById('boxL').value), inputW=parseFloat(document.getElementById('boxW').value), inputH=parseFloat(document.getElementById('boxH').value);
         const wall=parseFloat(document.getElementById('wallThick').value);
         const gap=parseFloat(document.getElementById('itemGap').value) || 0;
-        // 修改：膨胀值直接为 mm
         const bulgeVal = parseFloat(document.getElementById('bulgeVal').value) || 0;
         
         const showE=document.getElementById('showEdges').checked, showH=document.getElementById('hasHandle').checked;
@@ -351,7 +407,6 @@ html_code = r"""
         if(sizeMode === 'outer') { vL = inputL; vW = inputW; vH = inputH; rL = vL - wall*2; rW = vW - wall*2; rH = vH - wall*2; }
         else { rL = inputL; rW = inputW; rH = inputH; vL = rL + wall*2; vW = rW + wall*2; vH = rH + wall*2; }
 
-        // 计算逻辑：有效尺寸 = 内径 + 膨胀值
         const effectiveRL = rL + bulgeVal;
         const effectiveRW = rW + bulgeVal;
         const effectiveRH = rH + bulgeVal;
@@ -422,7 +477,6 @@ html_code = r"""
         const startZ = -rW/2 + offZ;
 
         for(let y=0; y<nY; y++) {
-            // 分层着色逻辑
             const currentColor = useLayerColor ? layerColors[y % layerColors.length] : 0x3498db;
             const iMat = new THREE.MeshPhongMaterial({ color: currentColor });
 
@@ -446,6 +500,7 @@ html_code = r"""
     }
 
     function updateMiniView(l, w, h) {
+        if(!miniItemContainer) return;
         miniItemContainer.clear();
         const mat = new THREE.MeshPhongMaterial({color: 0x3498db});
         const geo = new THREE.BoxGeometry(l, h, w);
@@ -492,11 +547,10 @@ html_code = r"""
             if(k === 'e') tfControls.setMode('scale');
         });
         
-        // 核心：回车自动计算监听
         document.querySelectorAll('.calc-trigger').forEach(input => {
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
-                    input.blur(); // 移除焦点，触发 change 事件
+                    input.blur(); 
                     updateAndRender();
                 }
             });
@@ -507,7 +561,14 @@ html_code = r"""
         targetGroup=new THREE.Group(); boxGroup=new THREE.Group(); itemsGroup=new THREE.Group(); labelGroup=new THREE.Group();
         targetGroup.add(boxGroup,itemsGroup,labelGroup); scene.add(targetGroup); initMini();
         document.getElementById('toggleBtn').onclick=()=>{isOpen=!isOpen; document.getElementById('toggleBtn').innerText=isOpen?"关闭纸箱":"开启纸箱";};
-        window.addEventListener('resize',()=>{camera.aspect=v.clientWidth/v.clientHeight;camera.updateProjectionMatrix();renderer.setSize(v.clientWidth,v.clientHeight);});
+        
+        // 关键修复：窗口调整时同步更新
+        window.addEventListener('resize',()=>{
+            camera.aspect=v.clientWidth/v.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(v.clientWidth,v.clientHeight);
+        });
+        
         updateAndRender(); animate();
     }
 
@@ -538,6 +599,5 @@ html_code = r"""
 </html>
 """
 
-# 4. 在 Streamlit 中渲染完整的 HTML 应用
-# 高度设置为 1200 像素以确保在大屏幕上能容纳完整的侧边栏
+# 4. 在 Streamlit 中渲染 (Height 设置较大值以防止 Python 侧截断，实际由 CSS 控制)
 components.html(html_code, height=1200, scrolling=False)
