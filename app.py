@@ -3,100 +3,57 @@ import streamlit.components.v1 as components
 
 # 1. 设置 Streamlit 页面配置
 st.set_page_config(
-    page_title="3D 智能堆码专家 V9.0 - 增强版",
+    page_title="3D 智能堆码专家 V9.1 - 完美报告版",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# 2. 核心修复：注入 CSS 强制 iframe 全屏且不可滚动
+# 2. 注入 CSS 强制 iframe 全屏且不可滚动
 st.markdown("""
     <style>
-        /* 隐藏 Streamlit 所有原生 UI */
         #MainMenu, header, footer {visibility: hidden;}
-        
-        /* 移除 Streamlit 容器的所有内边距和滚动条 */
         .block-container {
-            padding: 0 !important;
-            margin: 0 !important;
-            max-width: 100% !important;
-            overflow: hidden !important;
+            padding: 0 !important; margin: 0 !important;
+            max-width: 100% !important; overflow: hidden !important;
         }
-        
-        /* 禁止 Streamlit 主页面滚动 */
-        .main {
-            overflow: hidden !important;
-        }
-
-        /* 关键修复：强制 iframe 占满屏幕，脱离文档流 */
+        .main { overflow: hidden !important; }
         iframe {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100vw !important;
-            height: 100vh !important;
-            border: none !important;
-            z-index: 99999; /* 确保在最上层 */
-            display: block;
+            position: fixed !important; top: 0 !important; left: 0 !important;
+            width: 100vw !important; height: 100vh !important;
+            border: none !important; z-index: 99999; display: block;
         }
     </style>
 """, unsafe_allow_html=True)
 
-# 3. HTML 代码 (包含新功能)
+# 3. HTML 代码 (包含修复后的动画引擎和高级报表引擎)
 html_code = r"""
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D 智能堆码专家 V9.0</title>
+    <title>3D 智能堆码专家 V9.1</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     
     <style>
-        /* 全局重置：禁止 body 滚动 */
-        html, body { 
-            margin: 0; padding: 0; width: 100%; height: 100vh; overflow: hidden; 
-        }
-        
-        body { 
-            font-family: "PingFang SC", "Segoe UI", sans-serif; 
-            display: flex; 
-            background-color: #f4f7f6; 
-        }
+        html, body { margin: 0; padding: 0; width: 100%; height: 100vh; overflow: hidden; }
+        body { font-family: "PingFang SC", "Segoe UI", sans-serif; display: flex; background-color: #f4f7f6; }
 
-        /* 侧边栏：允许独立滚动 */
+        /* 侧边栏 */
         #sidebar { 
-            width: 340px; 
-            height: 100%; 
-            background: #ffffff; 
-            border-right: 1px solid #d1d9e6; 
-            padding: 18px; 
-            box-sizing: border-box; 
-            z-index: 100; 
-            display: flex; 
-            flex-direction: column; 
-            gap: 10px; 
-            box-shadow: 4px 0 15px rgba(0,0,0,0.05); 
-            overflow-y: auto; 
-            flex-shrink: 0;
+            width: 340px; height: 100%; background: #ffffff; border-right: 1px solid #d1d9e6; 
+            padding: 18px; box-sizing: border-box; z-index: 100; display: flex; flex-direction: column; 
+            gap: 10px; box-shadow: 4px 0 15px rgba(0,0,0,0.05); overflow-y: auto; flex-shrink: 0;
         }
-
-        /* 视图区：禁止滚动 */
-        #viewport { 
-            flex-grow: 1; 
-            height: 100%; 
-            position: relative; 
-            background: #eef2f3; 
-            cursor: crosshair; 
-            overflow: hidden; 
-        }
-        
-        /* 美化滚动条 */
         #sidebar::-webkit-scrollbar { width: 6px; }
         #sidebar::-webkit-scrollbar-track { background: #f1f1f1; }
         #sidebar::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
 
-        /* 样式组件 */
+        /* 视图区 */
+        #viewport { flex-grow: 1; height: 100%; position: relative; background: #eef2f3; cursor: crosshair; overflow: hidden; }
+        
+        /* UI 组件样式 */
         .stats-card { background: #2c3e50; color: #ecf0f1; padding: 12px; border-radius: 8px; flex-shrink: 0; }
         .stats-item { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; }
         .efficiency-bar { height: 6px; background: #444; border-radius: 3px; overflow: hidden; }
@@ -124,7 +81,6 @@ html_code = r"""
         .btn-hide { background: #ecf0f1; color: #7f8c8d; border: 1px solid #d1d9e6; }
         .btn-hide.active { background: #3498db; color: white; border-color: #2980b9; }
         
-        /* 新增功能按钮样式 */
         .btn-anim { background: #9b59b6; color: white; }
         .btn-export { background: #27ae60; color: white; }
         .preset-row { display: flex; gap: 5px; margin-bottom: 10px; }
@@ -134,12 +90,22 @@ html_code = r"""
         #mini-viewport { width: 220px; height: 220px; background: #fff; border: 2px solid #3498db; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); overflow: hidden; }
         .checkbox-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #444; cursor: pointer; }
         .bulge-input { background-color: #e8f8f5; border: 1px solid #2ecc71; color: #27ae60; font-weight: bold; }
+        
+        /* 加载遮罩 */
+        #loadingOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); color: white; display: none;
+            justify-content: center; align-items: center; z-index: 200;
+            font-size: 20px; font-weight: bold;
+        }
     </style>
 </head>
 <body>
 
+<div id="loadingOverlay">正在生成报告，请稍候...</div>
+
 <div id="sidebar">
-    <h2 style="margin:0; font-size: 18px; color: #2c3e50;">📦 堆码专家 V9.0</h2>
+    <h2 style="margin:0; font-size: 18px; color: #2c3e50;">📦 堆码专家 V9.1</h2>
     
     <div class="stats-card">
         <div class="stats-item"><span>装载总量:</span><b id="statCount">0 pcs</b></div>
@@ -226,11 +192,10 @@ html_code = r"""
     
     <div class="btn-row" style="display:flex; gap:5px; margin-top:5px;">
         <button class="btn-anim" onclick="playAnimation()">🎬 演示装载</button>
-        <button class="btn-export" onclick="exportPDF()">📄 导出报告</button>
+        <button class="btn-export" onclick="exportPDF()">📄 导出详细报告</button>
     </div>
 
     <button class="btn-toggle" id="toggleBtn" style="margin-top:5px;">开启/关闭纸箱</button>
-    
     <div style="height: 50px;"></div>
 </div>
 
@@ -255,215 +220,222 @@ html_code = r"""
     const edgeMat = new THREE.LineBasicMaterial({ color: 0x000000 });
     const layerColors = [0x3498db, 0xe67e22, 0x2ecc71, 0xe74c3c, 0x9b59b6, 0x1abc9c];
 
-    // --- 动画相关变量 ---
+    // --- 动画引擎变量 ---
     let isAnimating = false;
     let animIndex = 0;
     let animQueue = [];
+    let animFrameCounter = 0;
+    const ANIM_DELAY = 3; // 关键修改：每隔3帧显示一个，防止闪烁
     
-    // --- 预设管理功能 ---
-    function initPresets() {
-        refreshPresetList();
-    }
-    
+    function initPresets() { refreshPresetList(); }
     function refreshPresetList() {
         const sel = document.getElementById('presetSelect');
         const presets = JSON.parse(localStorage.getItem('stacking_presets') || '{}');
         sel.innerHTML = '<option value="">-- 选择预设 --</option>';
         for(let name in presets) {
-            let opt = document.createElement('option');
-            opt.value = name;
-            opt.innerText = name;
-            sel.appendChild(opt);
+            let opt = document.createElement('option'); opt.value = name; opt.innerText = name; sel.appendChild(opt);
         }
     }
-
     function savePreset() {
-        const name = prompt("请输入方案名称 (例如: 3号标准箱):");
-        if(!name) return;
+        const name = prompt("请输入方案名称:"); if(!name) return;
         const data = {
-            boxL: document.getElementById('boxL').value,
-            boxW: document.getElementById('boxW').value,
-            boxH: document.getElementById('boxH').value,
-            wall: document.getElementById('wallThick').value,
-            itemL: document.getElementById('itemL').value,
-            itemW: document.getElementById('itemW').value,
-            itemH: document.getElementById('itemH').value,
+            boxL: document.getElementById('boxL').value, boxW: document.getElementById('boxW').value, boxH: document.getElementById('boxH').value,
+            wall: document.getElementById('wallThick').value, itemL: document.getElementById('itemL').value, itemW: document.getElementById('itemW').value, itemH: document.getElementById('itemH').value,
             mode: sizeMode
         };
-        const presets = JSON.parse(localStorage.getItem('stacking_presets') || '{}');
-        presets[name] = data;
-        localStorage.setItem('stacking_presets', JSON.stringify(presets));
-        refreshPresetList();
-        alert("方案已保存!");
+        const presets = JSON.parse(localStorage.getItem('stacking_presets') || '{}'); presets[name] = data;
+        localStorage.setItem('stacking_presets', JSON.stringify(presets)); refreshPresetList(); alert("已保存");
     }
-
     function loadPreset() {
-        const name = document.getElementById('presetSelect').value;
-        if(!name) return;
-        const presets = JSON.parse(localStorage.getItem('stacking_presets') || '{}');
-        const data = presets[name];
+        const name = document.getElementById('presetSelect').value; if(!name) return;
+        const presets = JSON.parse(localStorage.getItem('stacking_presets') || '{}'); const data = presets[name];
         if(data) {
-            document.getElementById('boxL').value = data.boxL;
-            document.getElementById('boxW').value = data.boxW;
-            document.getElementById('boxH').value = data.boxH;
-            document.getElementById('wallThick').value = data.wall;
-            document.getElementById('itemL').value = data.itemL;
-            document.getElementById('itemW').value = data.itemW;
-            document.getElementById('itemH').value = data.itemH;
-            setSizeMode(data.mode || 'outer');
-            updateAndRender(); // 触发重算
+            document.getElementById('boxL').value = data.boxL; document.getElementById('boxW').value = data.boxW; document.getElementById('boxH').value = data.boxH;
+            document.getElementById('wallThick').value = data.wall; document.getElementById('itemL').value = data.itemL; document.getElementById('itemW').value = data.itemW; document.getElementById('itemH').value = data.itemH;
+            setSizeMode(data.mode || 'outer'); updateAndRender();
         }
     }
-
     function deletePreset() {
-        const name = document.getElementById('presetSelect').value;
-        if(!name) return;
-        if(confirm("确定删除 " + name + " 吗?")) {
-            const presets = JSON.parse(localStorage.getItem('stacking_presets') || '{}');
-            delete presets[name];
-            localStorage.setItem('stacking_presets', JSON.stringify(presets));
-            refreshPresetList();
+        const name = document.getElementById('presetSelect').value; if(!name) return;
+        if(confirm("删除 " + name + "?")) {
+            const presets = JSON.parse(localStorage.getItem('stacking_presets') || '{}'); delete presets[name];
+            localStorage.setItem('stacking_presets', JSON.stringify(presets)); refreshPresetList();
         }
     }
 
-    // --- PDF 导出功能 ---
-    async function exportPDF() {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-
-        // 1. 标题
-        doc.setFontSize(18);
-        doc.text("Stacking Report", 105, 15, { align: "center" });
-
-        // 2. 统计信息 (使用英文以避免乱码)
-        doc.setFontSize(10);
-        const count = document.getElementById('statCount').innerText;
-        const eff = document.getElementById('statEff').innerText;
-        const boxDim = `${document.getElementById('boxL').value}x${document.getElementById('boxW').value}x${document.getElementById('boxH').value}`;
-        const itemDim = `${document.getElementById('itemL').value}x${document.getElementById('itemW').value}x${document.getElementById('itemH').value}`;
+    // --- 高级 PDF 导出引擎 ---
+    function captureView(opts) {
+        // 临时保存状态
+        const oldItems = itemsGroup.visible;
+        const oldLabels = labelGroup.visible;
         
-        doc.text(`Total Count: ${count}`, 15, 25);
-        doc.text(`Efficiency: ${eff}`, 15, 30);
-        doc.text(`Box Size: ${boxDim} mm`, 15, 35);
-        doc.text(`Item Size: ${itemDim} mm`, 15, 40);
-
-        // 3. 3D 截图
-        renderer.render(scene, camera); // 确保渲染最新帧
-        const imgData = renderer.domElement.toDataURL('image/jpeg', 0.8);
-        doc.addImage(imgData, 'JPEG', 15, 45, 180, 100);
-
-        // 4. 数据表格
-        const headers = [['#', 'X (mm)', 'Y (mm)', 'Z (mm)', 'Width', 'Depth']];
-        const rows = [];
+        // 应用临时状态
+        if(opts.showItems !== undefined) itemsGroup.visible = opts.showItems;
+        if(opts.showLabels !== undefined) labelGroup.visible = opts.showLabels;
         
-        // 从 Three.js 对象中反向提取数据
-        let idx = 1;
-        itemsGroup.children.forEach(mesh => {
-            if(mesh.visible || isAnimating) { // 只统计有效物体
-                 // mesh position is center, convert back to corner
-                const w = mesh.geometry.parameters.width;
-                const d = mesh.geometry.parameters.depth;
-                const h = mesh.geometry.parameters.height; // inner item height
-                // 这里我们简化，直接输出中心坐标或计算出的角坐标
-                // 注意：坐标已经包含了偏移量，这里直接输出相对坐标可能更直观
-                rows.push([
-                    idx++,
-                    Math.round(mesh.position.x),
-                    Math.round(mesh.position.y),
-                    Math.round(mesh.position.z),
-                    Math.round(w),
-                    Math.round(d)
-                ]);
-            }
-        });
-
-        // 仅截取前 500 行防止 PDF 过大卡死，或者分页
-        const printRows = rows.slice(0, 1000); 
-
-        doc.autoTable({
-            head: headers,
-            body: printRows,
-            startY: 150,
-            theme: 'grid',
-            headStyles: { fillColor: [44, 62, 80] },
-            styles: { fontSize: 8 }
-        });
-
-        doc.save('stacking-plan.pdf');
+        // 强制渲染
+        renderer.render(scene, camera);
+        const data = renderer.domElement.toDataURL('image/jpeg', 0.85);
+        
+        // 恢复状态
+        itemsGroup.visible = oldItems;
+        labelGroup.visible = oldLabels;
+        return data;
     }
 
-    // --- 动画逻辑 ---
+    function exportPDF() {
+        document.getElementById('loadingOverlay').style.display = 'flex';
+        
+        // 给 UI 渲染一点时间，然后执行
+        setTimeout(() => {
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                // 1. 获取四种视图
+                // 视图A：空纸箱 (无货物，无标注)
+                const imgEmpty = captureView({ showItems: false, showLabels: false });
+                // 视图B：尺寸视图 (无货物，有标注)
+                const imgDim = captureView({ showItems: false, showLabels: true });
+                // 视图C：满装视图 (有货物，为了整洁建议关标注，或者开着也行，这里设为关)
+                const imgFull = captureView({ showItems: true, showLabels: false });
+                
+                // 2. 布局 PDF
+                doc.setFontSize(22);
+                doc.setTextColor(44, 62, 80);
+                doc.text("装箱方案报告 (Stacking Report)", 105, 20, { align: "center" });
+                
+                // --- 统计数据区域 ---
+                doc.setFontSize(12);
+                doc.setTextColor(0, 0, 0);
+                const count = document.getElementById('statCount').innerText;
+                const eff = document.getElementById('statEff').innerText;
+                const boxD = `${document.getElementById('boxL').value}x${document.getElementById('boxW').value}x${document.getElementById('boxH').value}mm`;
+                const itemD = `${document.getElementById('itemL').value}x${document.getElementById('itemW').value}x${document.getElementById('itemH').value}mm`;
+                
+                doc.setDrawColor(200);
+                doc.setFillColor(245, 247, 250);
+                doc.rect(15, 30, 180, 25, 'F');
+                doc.text(`纸箱: ${boxD}`, 20, 40);
+                doc.text(`内盒: ${itemD}`, 100, 40);
+                doc.setFont("helvetica", "bold");
+                doc.text(`装箱数量: ${count}`, 20, 50);
+                doc.text(`体积利用率: ${eff}`, 100, 50);
+                
+                // --- 图像区域 (2x2 布局) ---
+                // 左上：空纸箱
+                doc.setFontSize(10);
+                doc.setFont("helvetica", "normal");
+                doc.text("1. 空纸箱视图 (Empty Box)", 20, 65);
+                doc.addImage(imgEmpty, 'JPEG', 20, 70, 80, 60);
+                
+                // 右上：尺寸标注
+                doc.text("2. 尺寸示意图 (Dimension View)", 110, 65);
+                doc.addImage(imgDim, 'JPEG', 110, 70, 80, 60);
+                
+                // 左下：满装效果
+                doc.text("3. 满装视图 (Full Load View)", 20, 140);
+                doc.addImage(imgFull, 'JPEG', 20, 145, 80, 60);
+                
+                // 右下：装箱说明
+                doc.text("4. 装箱策略 (Strategy)", 110, 140);
+                const stratName = document.getElementById('stackStrategy').options[document.getElementById('stackStrategy').selectedIndex].text;
+                doc.setFontSize(9);
+                doc.text(`- 策略: ${stratName}`, 110, 150);
+                doc.text(`- 对齐: ${document.getElementById('alignStrategy').value}`, 110, 156);
+                doc.text(`- 间隙: ${document.getElementById('itemGap').value} mm`, 110, 162);
+                doc.text(`- 堆叠层数: ${Math.floor(parseFloat(document.getElementById('boxH').value)/parseFloat(document.getElementById('itemH').value))} 层`, 110, 168);
+
+                // --- 底部：明细表格 ---
+                doc.addPage();
+                doc.text("装载明细数据 (Packing List)", 15, 15);
+                
+                const headers = [['Index', 'X (mm)', 'Y (mm)', 'Z (mm)', 'Size (WxHxD)']];
+                const rows = [];
+                let idx = 1;
+                itemsGroup.children.forEach(mesh => {
+                    if(mesh.geometry) { 
+                        const p = mesh.position;
+                        const s = mesh.geometry.parameters;
+                        rows.push([
+                            idx++,
+                            Math.round(p.x), Math.round(p.y), Math.round(p.z),
+                            `${Math.round(s.width)}x${Math.round(s.height)}x${Math.round(s.depth)}`
+                        ]);
+                    }
+                });
+                
+                doc.autoTable({
+                    head: headers, body: rows.slice(0, 1000), // 限制行数防止崩溃
+                    startY: 20, theme: 'grid', styles: { fontSize: 8 }, headStyles: { fillColor: [52, 152, 219] }
+                });
+
+                doc.save('Stacking_Report_V9.pdf');
+            } catch (e) {
+                alert("生成报告出错: " + e.message);
+            } finally {
+                document.getElementById('loadingOverlay').style.display = 'none';
+            }
+        }, 100);
+    }
+
     function playAnimation() {
         if(!itemsGroup.children.length) return;
         
-        // 1. 重置所有物体为隐藏
+        // 1. 隐藏所有
         animQueue = [];
-        // 按照 Y (层), 然后 Z, 然后 X 排序，让动画看起来有层次感
         const children = itemsGroup.children.slice().sort((a,b) => {
+            // 排序：先下后上(Y)，先里后外(Z)，先左后右(X)
             if(Math.abs(a.position.y - b.position.y) > 1) return a.position.y - b.position.y;
-            return a.position.z - b.position.z || a.position.x - b.position.x;
+            if(Math.abs(a.position.z - b.position.z) > 1) return a.position.z - b.position.z;
+            return a.position.x - b.position.x;
         });
         
         children.forEach(c => {
             c.visible = false;
-            c.scale.set(0.1, 0.1, 0.1); // 缩放初始状态
+            c.userData.finalY = c.position.y; // 记录最终位置
+            c.position.y += 200; // 抬高，做掉落效果
             animQueue.push(c);
         });
 
         isAnimating = true;
         animIndex = 0;
+        animFrameCounter = 0;
         document.getElementById('toggleBtn').innerText = "关闭纸箱";
-        isOpen = true; // 动画时强制开箱方便观看
+        isOpen = true; // 强制开箱
     }
 
-    // --- 基础逻辑 ---
     function setSizeMode(m) {
         sizeMode = m;
         document.getElementById('mode-outer').classList.toggle('active', m === 'outer');
         document.getElementById('mode-inner').classList.toggle('active', m === 'inner');
         updateAndRender();
     }
-
     function toggleLabelVisibility(idx) {
         if(idx === 1) showL1 = !showL1; else showL2 = !showL2;
         document.getElementById('btn-show-l' + idx).classList.toggle('active', idx === 1 ? showL1 : showL2);
         updateAndRender();
     }
-
     function toggleLogoVisibility(idx) {
         if(idx === 1) showLogo1 = !showLogo1; else showLogo2 = !showLogo2;
         document.getElementById('btn-logo-l' + idx).classList.toggle('active', idx === 1 ? showLogo1 : showLogo2);
         updateAndRender();
     }
-
-    function toggleMiniViewManual() {
-        document.getElementById('mini-container').style.display = document.getElementById('showMiniView').checked ? 'flex' : 'none';
-    }
-    
+    function toggleMiniViewManual() { document.getElementById('mini-container').style.display = document.getElementById('showMiniView').checked ? 'flex' : 'none'; }
     function resetMiniView() { if(miniControls) miniControls.reset(); }
-
     function updateOpacity() {
         const val = parseInt(document.getElementById('boxOpacity').value);
         document.getElementById('val-op').innerText = val;
         const op = val / 100;
-        boxGroup.traverse(c => {
-            if(c.isMesh && !c.userData.isInteractable) {
-                c.material.opacity = op;
-                c.material.transparent = op < 1.0;
-                c.material.needsUpdate = true;
-            }
-        });
+        boxGroup.traverse(c => { if(c.isMesh && !c.userData.isInteractable) { c.material.opacity = op; c.material.transparent = op < 1.0; c.material.needsUpdate = true; } });
     }
-
     function loadLabel(i) { if(i.files[0]) { let r=new FileReader(); r.onload=e=>{let m=new Image(); m.onload=()=>{labelTexture=new THREE.Texture(m); labelTexture.needsUpdate=true; updateAndRender();}; m.src=e.target.result;}; r.readAsDataURL(i.files[0]); } }
     function loadLogo(i) { if(i.files[0]) { let r=new FileReader(); r.onload=e=>{let m=new Image(); m.onload=()=>{logoTexture=new THREE.Texture(m); logoTexture.needsUpdate=true; updateAndRender();}; m.src=e.target.result;}; r.readAsDataURL(i.files[0]); } }
-
     function getHandleTexture() {
         const c = document.createElement('canvas'); c.width=256; c.height=256; const x=c.getContext('2d');
         x.fillStyle='#d2a679'; x.fillRect(0,0,256,256); x.fillStyle='#3e2723'; x.beginPath(); x.roundRect(68,108,120,40,20); x.fill();
         return new THREE.CanvasTexture(c);
     }
-
     function createDimLabel(txt, p1, p2, offD, dist, col='#ff3333') {
         const g=new THREE.Group(); const mat=new THREE.LineBasicMaterial({color:col});
         const d1=p1.clone().add(offD.clone().multiplyScalar(dist)); const d2=p2.clone().add(offD.clone().multiplyScalar(dist));
@@ -476,7 +448,6 @@ html_code = r"""
         s.position.copy(d1.clone().lerp(d2,0.5)).add(offD.clone().multiplyScalar(15)); g.add(s); return g;
     }
 
-    // --- 算法部分 ---
     const memo = {};
     function solveGuillotine(rectL, rectW, l, w) {
         const key = Math.round(rectL * 1000) + "x" + Math.round(rectW * 1000);
@@ -566,8 +537,7 @@ html_code = r"""
     }
 
     function updateAndRender() {
-        // 重置动画状态
-        isAnimating = false;
+        isAnimating = false; // 停止动画
         
         const inputL=parseFloat(document.getElementById('boxL').value), inputW=parseFloat(document.getElementById('boxW').value), inputH=parseFloat(document.getElementById('boxH').value);
         const wall=parseFloat(document.getElementById('wallThick').value);
@@ -619,14 +589,12 @@ html_code = r"""
         addF(vL,vW/2,0,vW/2,'x',1,'long'); addF(vL,vW/2,0,-vW/2,'x',-1,'long'); addF(vL/2,vW,vL/2,0,'z',1,'short'); addF(vL/2,vW,-vL/2,0,'z',-1,'short');
 
         const iL=parseFloat(document.getElementById('itemL').value), iW=parseFloat(document.getElementById('itemW').value), iH=parseFloat(document.getElementById('itemH').value);
-        
         const calcRL = effectiveRL + gap; const calcRW = effectiveRW + gap;
         const effL = iL + gap; const effW = iW + gap;
 
         let layerResult;
-        if (strat === 'ultra') {
-            layerResult = solveUltra(calcRL, calcRW, effL, effW); 
-        } else if (strat === 'l_first') {
+        if (strat === 'ultra') layerResult = solveUltra(calcRL, calcRW, effL, effW); 
+        else if (strat === 'l_first') {
             let nx = Math.floor(calcRL/effL), nz = Math.floor(calcRW/effW), items=[];
             for(let x=0; x<nx; x++) for(let z=0; z<nz; z++) items.push({x: x*effL, z: z*effW, w: effL, d: effW});
             layerResult = { n: items.length, items: items };
@@ -687,11 +655,10 @@ html_code = r"""
     }
 
     function init(){
-        initPresets(); // 初始化预设列表
-        
+        initPresets();
         const v=document.getElementById('viewport'); scene=new THREE.Scene(); scene.background=new THREE.Color(0xeef2f3);
         camera=new THREE.PerspectiveCamera(45,v.clientWidth/v.clientHeight,1,10000); camera.position.set(600,600,600);
-        renderer=new THREE.WebGLRenderer({antialias:true, preserveDrawingBuffer: true}); // 开启 buffer 保存以便截图
+        renderer=new THREE.WebGLRenderer({antialias:true, preserveDrawingBuffer: true}); 
         renderer.setSize(v.clientWidth,v.clientHeight); v.appendChild(renderer.domElement);
         controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true;
         controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.DOLLY };
@@ -726,12 +693,7 @@ html_code = r"""
         });
         
         document.querySelectorAll('.calc-trigger').forEach(input => {
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    input.blur(); 
-                    updateAndRender();
-                }
-            });
+            input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { input.blur(); updateAndRender(); } });
         });
 
         scene.add(new THREE.AmbientLight(0xffffff, 0.7));
@@ -739,12 +701,7 @@ html_code = r"""
         targetGroup=new THREE.Group(); boxGroup=new THREE.Group(); itemsGroup=new THREE.Group(); labelGroup=new THREE.Group();
         targetGroup.add(boxGroup,itemsGroup,labelGroup); scene.add(targetGroup); initMini();
         document.getElementById('toggleBtn').onclick=()=>{isOpen=!isOpen; document.getElementById('toggleBtn').innerText=isOpen?"关闭纸箱":"开启纸箱";};
-        
-        window.addEventListener('resize',()=>{
-            camera.aspect=v.clientWidth/v.clientHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(v.clientWidth,v.clientHeight);
-        });
+        window.addEventListener('resize',()=>{ camera.aspect=v.clientWidth/v.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(v.clientWidth,v.clientHeight); });
         
         updateAndRender(); animate();
     }
@@ -768,18 +725,30 @@ html_code = r"""
             if(f.axis==='x')f.pivot.rotation.x=f.currentAng*f.dir; else f.pivot.rotation.z=-f.currentAng*f.dir;
         });
 
-        // --- 动画逐帧显示逻辑 ---
+        // --- 修复后的动画逻辑 ---
         if(isAnimating && animQueue.length > 0) {
-             // 每一帧显示 2 个，加速过程
-            for(let i=0; i<2; i++) {
+            animFrameCounter++;
+            if(animFrameCounter > ANIM_DELAY) { // 延迟控制
+                animFrameCounter = 0;
                 if(animIndex < animQueue.length) {
                     const item = animQueue[animIndex];
                     item.visible = true;
-                    // 简单的 "弹入" 效果 (从0.1缩放恢复到1)
-                    if(item.scale.x < 1) item.scale.set(1, 1, 1);
+                    // 简单的下落动画逻辑 (每帧逼近 finalY)
+                    // 这里我们为了简单起见，直接显示，或者在这里启动一个 tween
+                    // 但为了性能，我们这里只做显示，配合下面的 else 逻辑做移动
                     animIndex++;
                 } else {
-                    isAnimating = false;
+                    isAnimating = false; // 队列处理完毕，但物体可能还在下落，这里简化为结束
+                }
+            }
+            
+            // 处理所有已显示物体的下落动画
+            for(let i=0; i<animIndex; i++) {
+                const item = animQueue[i];
+                if(item.position.y > item.userData.finalY + 0.1) {
+                    item.position.y += (item.userData.finalY - item.position.y) * 0.2; // 缓动下落
+                } else {
+                    item.position.y = item.userData.finalY; // 修正到位
                 }
             }
         }
@@ -793,5 +762,4 @@ html_code = r"""
 </html>
 """
 
-# 4. 在 Streamlit 中渲染 (Height 设置较大值以防止 Python 侧截断，实际由 CSS 控制)
 components.html(html_code, height=1200, scrolling=False)
