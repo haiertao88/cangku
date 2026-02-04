@@ -3,7 +3,7 @@ import streamlit.components.v1 as components
 
 # 1. 设置 Streamlit 页面配置
 st.set_page_config(
-    page_title="3D 智能堆码专家 V8.3 - Python版",
+    page_title="3D 智能堆码专家 V9.0 - 增强版",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -41,22 +41,21 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. HTML 代码 (包含内部滚动逻辑)
+# 3. HTML 代码 (包含新功能)
 html_code = r"""
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D 智能堆码专家 V8.3</title>
+    <title>3D 智能堆码专家 V9.0</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    
     <style>
         /* 全局重置：禁止 body 滚动 */
         html, body { 
-            margin: 0; 
-            padding: 0; 
-            width: 100%; 
-            height: 100vh; /* 强制视口高度 */
-            overflow: hidden; /* 关键：防止整个页面出现滚动条 */
+            margin: 0; padding: 0; width: 100%; height: 100vh; overflow: hidden; 
         }
         
         body { 
@@ -68,7 +67,7 @@ html_code = r"""
         /* 侧边栏：允许独立滚动 */
         #sidebar { 
             width: 340px; 
-            height: 100%; /* 继承 body 的 100vh */
+            height: 100%; 
             background: #ffffff; 
             border-right: 1px solid #d1d9e6; 
             padding: 18px; 
@@ -78,8 +77,6 @@ html_code = r"""
             flex-direction: column; 
             gap: 10px; 
             box-shadow: 4px 0 15px rgba(0,0,0,0.05); 
-            
-            /* 关键：侧边栏独立滚动条 */
             overflow-y: auto; 
             flex-shrink: 0;
         }
@@ -87,22 +84,19 @@ html_code = r"""
         /* 视图区：禁止滚动 */
         #viewport { 
             flex-grow: 1; 
-            height: 100%; /* 继承 body 的 100vh */
+            height: 100%; 
             position: relative; 
             background: #eef2f3; 
             cursor: crosshair; 
-            
-            /* 关键：防止视图区溢出导致滚动 */
             overflow: hidden; 
         }
         
-        /* 美化滚动条 (Webkit) */
+        /* 美化滚动条 */
         #sidebar::-webkit-scrollbar { width: 6px; }
         #sidebar::-webkit-scrollbar-track { background: #f1f1f1; }
         #sidebar::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
-        #sidebar::-webkit-scrollbar-thumb:hover { background: #bbb; }
 
-        /* 以下保持原有样式不变 */
+        /* 样式组件 */
         .stats-card { background: #2c3e50; color: #ecf0f1; padding: 12px; border-radius: 8px; flex-shrink: 0; }
         .stats-item { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; }
         .efficiency-bar { height: 6px; background: #444; border-radius: 3px; overflow: hidden; }
@@ -113,7 +107,7 @@ html_code = r"""
         .input-item { flex: 1; display: flex; flex-direction: column; gap: 2px; }
         .input-item span { font-size: 10px; color: #7f8c8d; }
         
-        input[type="number"], select { width: 100%; padding: 6px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 12px; outline: none; background: white; box-sizing: border-box; }
+        input[type="number"], select, input[type="text"] { width: 100%; padding: 6px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 12px; outline: none; background: white; box-sizing: border-box; }
         input[type="range"] { width: 100%; cursor: pointer; height: 4px; background: #dfe6e9; border-radius: 2px; outline: none; }
 
         .upload-card { background: #f8faff; border: 1px solid #e1e8f0; border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
@@ -129,24 +123,37 @@ html_code = r"""
         .btn-toggle { background: #95a5a6; color: #fff; }
         .btn-hide { background: #ecf0f1; color: #7f8c8d; border: 1px solid #d1d9e6; }
         .btn-hide.active { background: #3498db; color: white; border-color: #2980b9; }
+        
+        /* 新增功能按钮样式 */
+        .btn-anim { background: #9b59b6; color: white; }
+        .btn-export { background: #27ae60; color: white; }
+        .preset-row { display: flex; gap: 5px; margin-bottom: 10px; }
 
         #mini-container { position: absolute; bottom: 20px; right: 20px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; pointer-events: none; }
         #mini-container > * { pointer-events: auto; }
         #mini-viewport { width: 220px; height: 220px; background: #fff; border: 2px solid #3498db; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); overflow: hidden; }
         .checkbox-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #444; cursor: pointer; }
-        
         .bulge-input { background-color: #e8f8f5; border: 1px solid #2ecc71; color: #27ae60; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div id="sidebar">
-    <h2 style="margin:0; font-size: 18px; color: #2c3e50;">📦 堆码专家 V8.3</h2>
+    <h2 style="margin:0; font-size: 18px; color: #2c3e50;">📦 堆码专家 V9.0</h2>
     
     <div class="stats-card">
         <div class="stats-item"><span>装载总量:</span><b id="statCount">0 pcs</b></div>
         <div class="stats-item"><span>空间利用率:</span><b id="statEff">0%</b></div>
         <div class="efficiency-bar"><div id="effFill" class="efficiency-fill"></div></div>
+    </div>
+
+    <div class="group-title">💾 方案管理</div>
+    <div class="preset-row">
+        <select id="presetSelect" onchange="loadPreset()" style="flex:2;">
+            <option value="">-- 选择预设 --</option>
+        </select>
+        <button class="btn-hide active" style="flex:1;" onclick="savePreset()">保存</button>
+        <button class="btn-hide" style="flex:0.5; background:#e74c3c; color:white;" onclick="deletePreset()">X</button>
     </div>
 
     <div class="group-title">图片素材上传</div>
@@ -183,7 +190,7 @@ html_code = r"""
         <div class="input-item" style="flex: 0.5;"><span>间隙</span><input type="number" id="itemGap" value="0" min="0" class="calc-trigger" style="background:#fff3e0;"></div>
         <div class="input-item" style="flex: 1.5;"><span>算法策略</span>
             <select id="stackStrategy" onchange="updateAndRender()">
-                <option value="ultra">🚀 终极全排列 (V8.1)</option>
+                <option value="ultra">🚀 终极全排列</option>
                 <option value="l_first">📍 长度优先</option>
                 <option value="w_first">📌 宽度优先</option>
             </select>
@@ -215,8 +222,14 @@ html_code = r"""
         <label class="checkbox-item"><input type="checkbox" id="showMiniView" checked onchange="toggleMiniViewManual()"> 视窗</label>
     </div>
     
-    <button class="btn-update" onclick="updateAndRender()">执行计算 (或按回车)</button>
-    <button class="btn-toggle" id="toggleBtn">开启/关闭纸箱</button>
+    <button class="btn-update" onclick="updateAndRender()">执行计算 (Enter)</button>
+    
+    <div class="btn-row" style="display:flex; gap:5px; margin-top:5px;">
+        <button class="btn-anim" onclick="playAnimation()">🎬 演示装载</button>
+        <button class="btn-export" onclick="exportPDF()">📄 导出报告</button>
+    </div>
+
+    <button class="btn-toggle" id="toggleBtn" style="margin-top:5px;">开启/关闭纸箱</button>
     
     <div style="height: 50px;"></div>
 </div>
@@ -240,9 +253,170 @@ html_code = r"""
     let showL1 = true, showL2 = true, showLogo1 = true, showLogo2 = true;
     let sizeMode = 'outer', flaps = [];
     const edgeMat = new THREE.LineBasicMaterial({ color: 0x000000 });
-    
     const layerColors = [0x3498db, 0xe67e22, 0x2ecc71, 0xe74c3c, 0x9b59b6, 0x1abc9c];
 
+    // --- 动画相关变量 ---
+    let isAnimating = false;
+    let animIndex = 0;
+    let animQueue = [];
+    
+    // --- 预设管理功能 ---
+    function initPresets() {
+        refreshPresetList();
+    }
+    
+    function refreshPresetList() {
+        const sel = document.getElementById('presetSelect');
+        const presets = JSON.parse(localStorage.getItem('stacking_presets') || '{}');
+        sel.innerHTML = '<option value="">-- 选择预设 --</option>';
+        for(let name in presets) {
+            let opt = document.createElement('option');
+            opt.value = name;
+            opt.innerText = name;
+            sel.appendChild(opt);
+        }
+    }
+
+    function savePreset() {
+        const name = prompt("请输入方案名称 (例如: 3号标准箱):");
+        if(!name) return;
+        const data = {
+            boxL: document.getElementById('boxL').value,
+            boxW: document.getElementById('boxW').value,
+            boxH: document.getElementById('boxH').value,
+            wall: document.getElementById('wallThick').value,
+            itemL: document.getElementById('itemL').value,
+            itemW: document.getElementById('itemW').value,
+            itemH: document.getElementById('itemH').value,
+            mode: sizeMode
+        };
+        const presets = JSON.parse(localStorage.getItem('stacking_presets') || '{}');
+        presets[name] = data;
+        localStorage.setItem('stacking_presets', JSON.stringify(presets));
+        refreshPresetList();
+        alert("方案已保存!");
+    }
+
+    function loadPreset() {
+        const name = document.getElementById('presetSelect').value;
+        if(!name) return;
+        const presets = JSON.parse(localStorage.getItem('stacking_presets') || '{}');
+        const data = presets[name];
+        if(data) {
+            document.getElementById('boxL').value = data.boxL;
+            document.getElementById('boxW').value = data.boxW;
+            document.getElementById('boxH').value = data.boxH;
+            document.getElementById('wallThick').value = data.wall;
+            document.getElementById('itemL').value = data.itemL;
+            document.getElementById('itemW').value = data.itemW;
+            document.getElementById('itemH').value = data.itemH;
+            setSizeMode(data.mode || 'outer');
+            updateAndRender(); // 触发重算
+        }
+    }
+
+    function deletePreset() {
+        const name = document.getElementById('presetSelect').value;
+        if(!name) return;
+        if(confirm("确定删除 " + name + " 吗?")) {
+            const presets = JSON.parse(localStorage.getItem('stacking_presets') || '{}');
+            delete presets[name];
+            localStorage.setItem('stacking_presets', JSON.stringify(presets));
+            refreshPresetList();
+        }
+    }
+
+    // --- PDF 导出功能 ---
+    async function exportPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        // 1. 标题
+        doc.setFontSize(18);
+        doc.text("Stacking Report", 105, 15, { align: "center" });
+
+        // 2. 统计信息 (使用英文以避免乱码)
+        doc.setFontSize(10);
+        const count = document.getElementById('statCount').innerText;
+        const eff = document.getElementById('statEff').innerText;
+        const boxDim = `${document.getElementById('boxL').value}x${document.getElementById('boxW').value}x${document.getElementById('boxH').value}`;
+        const itemDim = `${document.getElementById('itemL').value}x${document.getElementById('itemW').value}x${document.getElementById('itemH').value}`;
+        
+        doc.text(`Total Count: ${count}`, 15, 25);
+        doc.text(`Efficiency: ${eff}`, 15, 30);
+        doc.text(`Box Size: ${boxDim} mm`, 15, 35);
+        doc.text(`Item Size: ${itemDim} mm`, 15, 40);
+
+        // 3. 3D 截图
+        renderer.render(scene, camera); // 确保渲染最新帧
+        const imgData = renderer.domElement.toDataURL('image/jpeg', 0.8);
+        doc.addImage(imgData, 'JPEG', 15, 45, 180, 100);
+
+        // 4. 数据表格
+        const headers = [['#', 'X (mm)', 'Y (mm)', 'Z (mm)', 'Width', 'Depth']];
+        const rows = [];
+        
+        // 从 Three.js 对象中反向提取数据
+        let idx = 1;
+        itemsGroup.children.forEach(mesh => {
+            if(mesh.visible || isAnimating) { // 只统计有效物体
+                 // mesh position is center, convert back to corner
+                const w = mesh.geometry.parameters.width;
+                const d = mesh.geometry.parameters.depth;
+                const h = mesh.geometry.parameters.height; // inner item height
+                // 这里我们简化，直接输出中心坐标或计算出的角坐标
+                // 注意：坐标已经包含了偏移量，这里直接输出相对坐标可能更直观
+                rows.push([
+                    idx++,
+                    Math.round(mesh.position.x),
+                    Math.round(mesh.position.y),
+                    Math.round(mesh.position.z),
+                    Math.round(w),
+                    Math.round(d)
+                ]);
+            }
+        });
+
+        // 仅截取前 500 行防止 PDF 过大卡死，或者分页
+        const printRows = rows.slice(0, 1000); 
+
+        doc.autoTable({
+            head: headers,
+            body: printRows,
+            startY: 150,
+            theme: 'grid',
+            headStyles: { fillColor: [44, 62, 80] },
+            styles: { fontSize: 8 }
+        });
+
+        doc.save('stacking-plan.pdf');
+    }
+
+    // --- 动画逻辑 ---
+    function playAnimation() {
+        if(!itemsGroup.children.length) return;
+        
+        // 1. 重置所有物体为隐藏
+        animQueue = [];
+        // 按照 Y (层), 然后 Z, 然后 X 排序，让动画看起来有层次感
+        const children = itemsGroup.children.slice().sort((a,b) => {
+            if(Math.abs(a.position.y - b.position.y) > 1) return a.position.y - b.position.y;
+            return a.position.z - b.position.z || a.position.x - b.position.x;
+        });
+        
+        children.forEach(c => {
+            c.visible = false;
+            c.scale.set(0.1, 0.1, 0.1); // 缩放初始状态
+            animQueue.push(c);
+        });
+
+        isAnimating = true;
+        animIndex = 0;
+        document.getElementById('toggleBtn').innerText = "关闭纸箱";
+        isOpen = true; // 动画时强制开箱方便观看
+    }
+
+    // --- 基础逻辑 ---
     function setSizeMode(m) {
         sizeMode = m;
         document.getElementById('mode-outer').classList.toggle('active', m === 'outer');
@@ -266,9 +440,7 @@ html_code = r"""
         document.getElementById('mini-container').style.display = document.getElementById('showMiniView').checked ? 'flex' : 'none';
     }
     
-    function resetMiniView() {
-        if(miniControls) miniControls.reset();
-    }
+    function resetMiniView() { if(miniControls) miniControls.reset(); }
 
     function updateOpacity() {
         const val = parseInt(document.getElementById('boxOpacity').value);
@@ -304,7 +476,7 @@ html_code = r"""
         s.position.copy(d1.clone().lerp(d2,0.5)).add(offD.clone().multiplyScalar(15)); g.add(s); return g;
     }
 
-    // --- Guillotine Algorithm ---
+    // --- 算法部分 ---
     const memo = {};
     function solveGuillotine(rectL, rectW, l, w) {
         const key = Math.round(rectL * 1000) + "x" + Math.round(rectW * 1000);
@@ -394,6 +566,9 @@ html_code = r"""
     }
 
     function updateAndRender() {
+        // 重置动画状态
+        isAnimating = false;
+        
         const inputL=parseFloat(document.getElementById('boxL').value), inputW=parseFloat(document.getElementById('boxW').value), inputH=parseFloat(document.getElementById('boxH').value);
         const wall=parseFloat(document.getElementById('wallThick').value);
         const gap=parseFloat(document.getElementById('itemGap').value) || 0;
@@ -512,9 +687,12 @@ html_code = r"""
     }
 
     function init(){
+        initPresets(); // 初始化预设列表
+        
         const v=document.getElementById('viewport'); scene=new THREE.Scene(); scene.background=new THREE.Color(0xeef2f3);
         camera=new THREE.PerspectiveCamera(45,v.clientWidth/v.clientHeight,1,10000); camera.position.set(600,600,600);
-        renderer=new THREE.WebGLRenderer({antialias:true}); renderer.setSize(v.clientWidth,v.clientHeight); v.appendChild(renderer.domElement);
+        renderer=new THREE.WebGLRenderer({antialias:true, preserveDrawingBuffer: true}); // 开启 buffer 保存以便截图
+        renderer.setSize(v.clientWidth,v.clientHeight); v.appendChild(renderer.domElement);
         controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true;
         controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.DOLLY };
         tfControls = new THREE.TransformControls(camera, renderer.domElement);
@@ -562,7 +740,6 @@ html_code = r"""
         targetGroup.add(boxGroup,itemsGroup,labelGroup); scene.add(targetGroup); initMini();
         document.getElementById('toggleBtn').onclick=()=>{isOpen=!isOpen; document.getElementById('toggleBtn').innerText=isOpen?"关闭纸箱":"开启纸箱";};
         
-        // 关键修复：窗口调整时同步更新
         window.addEventListener('resize',()=>{
             camera.aspect=v.clientWidth/v.clientHeight;
             camera.updateProjectionMatrix();
@@ -590,6 +767,23 @@ html_code = r"""
             if(m) f.currentAng+=(tA-f.currentAng)*0.1;
             if(f.axis==='x')f.pivot.rotation.x=f.currentAng*f.dir; else f.pivot.rotation.z=-f.currentAng*f.dir;
         });
+
+        // --- 动画逐帧显示逻辑 ---
+        if(isAnimating && animQueue.length > 0) {
+             // 每一帧显示 2 个，加速过程
+            for(let i=0; i<2; i++) {
+                if(animIndex < animQueue.length) {
+                    const item = animQueue[animIndex];
+                    item.visible = true;
+                    // 简单的 "弹入" 效果 (从0.1缩放恢复到1)
+                    if(item.scale.x < 1) item.scale.set(1, 1, 1);
+                    animIndex++;
+                } else {
+                    isAnimating = false;
+                }
+            }
+        }
+
         controls.update(); if (miniControls) miniControls.update();
         renderer.render(scene,camera); miniRenderer.render(miniScene,miniCamera);
     }
