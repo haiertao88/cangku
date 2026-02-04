@@ -3,7 +3,7 @@ import streamlit.components.v1 as components
 
 # 1. 设置 Streamlit 页面配置
 st.set_page_config(
-    page_title="3D 智能堆码专家 V9.1 - 完美报告版",
+    page_title="3D 智能堆码专家 V9.2 - 稳定修复版",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -25,22 +25,26 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. HTML 代码 (包含修复后的动画引擎和高级报表引擎)
+# 3. HTML 代码
 html_code = r"""
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D 智能堆码专家 V9.1</title>
+    <title>3D 智能堆码专家 V9.2</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     <style>
         html, body { margin: 0; padding: 0; width: 100%; height: 100vh; overflow: hidden; }
-        body { font-family: "PingFang SC", "Segoe UI", sans-serif; display: flex; background-color: #f4f7f6; }
+        body { font-family: "PingFang SC", "Microsoft YaHei", sans-serif; display: flex; background-color: #f4f7f6; }
 
-        /* 侧边栏 */
+        /* 左侧设置栏 */
         #sidebar { 
             width: 340px; height: 100%; background: #ffffff; border-right: 1px solid #d1d9e6; 
             padding: 18px; box-sizing: border-box; z-index: 100; display: flex; flex-direction: column; 
@@ -50,10 +54,10 @@ html_code = r"""
         #sidebar::-webkit-scrollbar-track { background: #f1f1f1; }
         #sidebar::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
 
-        /* 视图区 */
+        /* 右侧 3D 视图 */
         #viewport { flex-grow: 1; height: 100%; position: relative; background: #eef2f3; cursor: crosshair; overflow: hidden; }
         
-        /* UI 组件样式 */
+        /* UI 组件 */
         .stats-card { background: #2c3e50; color: #ecf0f1; padding: 12px; border-radius: 8px; flex-shrink: 0; }
         .stats-item { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; }
         .efficiency-bar { height: 6px; background: #444; border-radius: 3px; overflow: hidden; }
@@ -91,21 +95,52 @@ html_code = r"""
         .checkbox-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #444; cursor: pointer; }
         .bulge-input { background-color: #e8f8f5; border: 1px solid #2ecc71; color: #27ae60; font-weight: bold; }
         
-        /* 加载遮罩 */
+        /* 遮罩层 */
         #loadingOverlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7); color: white; display: none;
-            justify-content: center; align-items: center; z-index: 200;
-            font-size: 20px; font-weight: bold;
+            background: rgba(0,0,0,0.8); color: white; display: none;
+            flex-direction: column; justify-content: center; align-items: center; z-index: 200;
         }
+        .loader {
+            border: 5px solid #f3f3f3; border-top: 5px solid #3498db; border-radius: 50%;
+            width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 15px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* 隐藏的报告模板，用于 HTML2Canvas 截图 */
+        #report-hidden-template {
+            position: absolute; top: -9999px; left: -9999px;
+            width: 794px; /* A4 宽度 approx */
+            background: white; padding: 40px; box-sizing: border-box;
+            color: #333;
+        }
+        .rpt-header { text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 20px; margin-bottom: 20px; }
+        .rpt-title { font-size: 24px; font-weight: bold; color: #2c3e50; }
+        .rpt-date { color: #7f8c8d; font-size: 12px; margin-top: 5px; }
+        
+        .rpt-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 30px; background: #f8f9fa; padding: 15px; border-radius: 8px; }
+        .rpt-stat-row { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding: 5px 0; font-size: 14px; }
+        
+        .rpt-gallery { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+        .rpt-img-box { border: 1px solid #eee; padding: 5px; border-radius: 4px; }
+        .rpt-img-box img { width: 100%; height: auto; display: block; }
+        .rpt-img-label { text-align: center; font-size: 12px; font-weight: bold; color: #555; margin-top: 5px; background: #eee; padding: 4px; }
+        
+        .rpt-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .rpt-table th { background: #3498db; color: white; padding: 8px; text-align: left; }
+        .rpt-table td { border-bottom: 1px solid #eee; padding: 6px; }
+        .rpt-table tr:nth-child(even) { background: #f9f9f9; }
     </style>
 </head>
 <body>
 
-<div id="loadingOverlay">正在生成报告，请稍候...</div>
+<div id="loadingOverlay">
+    <div class="loader"></div>
+    <div id="loadingText">正在处理...</div>
+</div>
 
 <div id="sidebar">
-    <h2 style="margin:0; font-size: 18px; color: #2c3e50;">📦 堆码专家 V9.1</h2>
+    <h2 style="margin:0; font-size: 18px; color: #2c3e50;">📦 堆码专家 V9.2</h2>
     
     <div class="stats-card">
         <div class="stats-item"><span>装载总量:</span><b id="statCount">0 pcs</b></div>
@@ -192,7 +227,7 @@ html_code = r"""
     
     <div class="btn-row" style="display:flex; gap:5px; margin-top:5px;">
         <button class="btn-anim" onclick="playAnimation()">🎬 演示装载</button>
-        <button class="btn-export" onclick="exportPDF()">📄 导出详细报告</button>
+        <button class="btn-export" onclick="exportReportImage()">📄 导出中文报告</button>
     </div>
 
     <button class="btn-toggle" id="toggleBtn" style="margin-top:5px;">开启/关闭纸箱</button>
@@ -206,9 +241,48 @@ html_code = r"""
     </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
+<div id="report-hidden-template">
+    <div class="rpt-header">
+        <div class="rpt-title">智能堆码装箱方案报告</div>
+        <div class="rpt-date" id="rptDate">2023-01-01</div>
+    </div>
+    
+    <div class="rpt-stats-grid">
+        <div class="rpt-stat-row"><b>纸箱尺寸:</b> <span id="rptBoxDim"></span></div>
+        <div class="rpt-stat-row"><b>内盒尺寸:</b> <span id="rptItemDim"></span></div>
+        <div class="rpt-stat-row"><b>装箱总数:</b> <span id="rptCount"></span></div>
+        <div class="rpt-stat-row"><b>体积利用率:</b> <span id="rptEff"></span></div>
+        <div class="rpt-stat-row"><b>计算策略:</b> <span id="rptStrat"></span></div>
+        <div class="rpt-stat-row"><b>对齐/间隙:</b> <span id="rptAlign"></span></div>
+    </div>
+
+    <div class="rpt-gallery">
+        <div class="rpt-img-box">
+            <img id="img-empty" src="" />
+            <div class="rpt-img-label">1. 空箱示意图</div>
+        </div>
+        <div class="rpt-img-box">
+            <img id="img-dim" src="" />
+            <div class="rpt-img-label">2. 尺寸标注图</div>
+        </div>
+        <div class="rpt-img-box">
+            <img id="img-full" src="" />
+            <div class="rpt-img-label">3. 满装俯视图</div>
+        </div>
+        <div class="rpt-img-box">
+            <img id="img-persp" src="" />
+            <div class="rpt-img-label">4. 满装透视图</div>
+        </div>
+    </div>
+
+    <h3>📦 装箱明细 (前200件)</h3>
+    <table class="rpt-table" id="rptTable">
+        <thead>
+            <tr><th>序号</th><th>X (mm)</th><th>Y (mm)</th><th>Z (mm)</th><th>规格</th></tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
 
 <script>
     let scene, camera, renderer, controls, tfControls, raycaster, mouse;
@@ -220,13 +294,13 @@ html_code = r"""
     const edgeMat = new THREE.LineBasicMaterial({ color: 0x000000 });
     const layerColors = [0x3498db, 0xe67e22, 0x2ecc71, 0xe74c3c, 0x9b59b6, 0x1abc9c];
 
-    // --- 动画引擎变量 ---
+    // 动画控制
     let isAnimating = false;
-    let animIndex = 0;
     let animQueue = [];
+    let animIndex = 0;
     let animFrameCounter = 0;
-    const ANIM_DELAY = 3; // 关键修改：每隔3帧显示一个，防止闪烁
-    
+
+    // --- 预设管理 ---
     function initPresets() { refreshPresetList(); }
     function refreshPresetList() {
         const sel = document.getElementById('presetSelect');
@@ -263,129 +337,112 @@ html_code = r"""
         }
     }
 
-    // --- 高级 PDF 导出引擎 ---
+    // --- 高级截图函数 ---
     function captureView(opts) {
-        // 临时保存状态
         const oldItems = itemsGroup.visible;
         const oldLabels = labelGroup.visible;
-        
-        // 应用临时状态
+        const oldPos = camera.position.clone();
+        const oldRot = camera.rotation.clone();
+
         if(opts.showItems !== undefined) itemsGroup.visible = opts.showItems;
         if(opts.showLabels !== undefined) labelGroup.visible = opts.showLabels;
         
-        // 强制渲染
+        // 自动调整视角
+        if(opts.view === 'top') {
+            camera.position.set(0, 1000, 0); camera.lookAt(0,0,0);
+        } else if (opts.view === 'persp') {
+            camera.position.set(600, 600, 600); camera.lookAt(0,0,0);
+        }
+
         renderer.render(scene, camera);
-        const data = renderer.domElement.toDataURL('image/jpeg', 0.85);
+        const data = renderer.domElement.toDataURL('image/jpeg', 0.9);
         
-        // 恢复状态
+        // 恢复
         itemsGroup.visible = oldItems;
         labelGroup.visible = oldLabels;
+        camera.position.copy(oldPos);
+        camera.rotation.copy(oldRot);
         return data;
     }
 
-    function exportPDF() {
+    // --- 导出 PDF (Canvas 截图方案) ---
+    async function exportReportImage() {
         document.getElementById('loadingOverlay').style.display = 'flex';
-        
-        // 给 UI 渲染一点时间，然后执行
-        setTimeout(() => {
+        document.getElementById('loadingText').innerText = "正在生成快照...";
+
+        // 1. 填充文本数据
+        document.getElementById('rptDate').innerText = new Date().toLocaleString();
+        document.getElementById('rptBoxDim').innerText = `${document.getElementById('boxL').value} x ${document.getElementById('boxW').value} x ${document.getElementById('boxH').value} mm`;
+        document.getElementById('rptItemDim').innerText = `${document.getElementById('itemL').value} x ${document.getElementById('itemW').value} x ${document.getElementById('itemH').value} mm`;
+        document.getElementById('rptCount').innerText = document.getElementById('statCount').innerText;
+        document.getElementById('rptEff').innerText = document.getElementById('statEff').innerText;
+        document.getElementById('rptStrat').innerText = document.getElementById('stackStrategy').options[document.getElementById('stackStrategy').selectedIndex].text;
+        document.getElementById('rptAlign').innerText = document.getElementById('alignStrategy').value + " / " + document.getElementById('itemGap').value + "mm";
+
+        // 2. 填充表格 (前200行)
+        const tbody = document.querySelector('#rptTable tbody');
+        tbody.innerHTML = "";
+        let idx = 1;
+        itemsGroup.children.forEach(mesh => {
+            if(idx > 200) return;
+            if(mesh.geometry) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${idx++}</td><td>${Math.round(mesh.position.x)}</td><td>${Math.round(mesh.position.y)}</td><td>${Math.round(mesh.position.z)}</td><td>${Math.round(mesh.geometry.parameters.width)}x${Math.round(mesh.geometry.parameters.height)}x${Math.round(mesh.geometry.parameters.depth)}</td>`;
+                tbody.appendChild(tr);
+            }
+        });
+
+        // 3. 生成 4 张 3D 截图
+        // 稍微延迟让 UI 渲染
+        setTimeout(async () => {
             try {
+                // A. 空箱图
+                document.getElementById('img-empty').src = captureView({ showItems: false, showLabels: false, view: 'persp' });
+                // B. 尺寸图
+                document.getElementById('img-dim').src = captureView({ showItems: false, showLabels: true, view: 'persp' });
+                // C. 满装俯视图
+                document.getElementById('img-full').src = captureView({ showItems: true, showLabels: false, view: 'top' });
+                // D. 满装透视图
+                document.getElementById('img-persp').src = captureView({ showItems: true, showLabels: false, view: 'persp' });
+
+                document.getElementById('loadingText').innerText = "正在渲染 PDF...";
+                
+                // 4. 将 HTML 模板转为 Canvas
+                const element = document.getElementById('report-hidden-template');
+                // 必须临时移动到可见区域截图，截完再移回去 (或者使用 cloning)
+                // 这里我们使用 window.scrollTo 技巧或 html2canvas 的 clone 特性
+                // 简单起见，利用 absolute 定位
+                
+                const canvas = await html2canvas(element, { scale: 2, useCORS: true });
+                
+                // 5. 生成 PDF
                 const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const imgData = canvas.toDataURL('image/jpeg', 0.95);
                 
-                // 1. 获取四种视图
-                // 视图A：空纸箱 (无货物，无标注)
-                const imgEmpty = captureView({ showItems: false, showLabels: false });
-                // 视图B：尺寸视图 (无货物，有标注)
-                const imgDim = captureView({ showItems: false, showLabels: true });
-                // 视图C：满装视图 (有货物，为了整洁建议关标注，或者开着也行，这里设为关)
-                const imgFull = captureView({ showItems: true, showLabels: false });
+                const pdfWidth = 210;
+                const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
                 
-                // 2. 布局 PDF
-                doc.setFontSize(22);
-                doc.setTextColor(44, 62, 80);
-                doc.text("装箱方案报告 (Stacking Report)", 105, 20, { align: "center" });
-                
-                // --- 统计数据区域 ---
-                doc.setFontSize(12);
-                doc.setTextColor(0, 0, 0);
-                const count = document.getElementById('statCount').innerText;
-                const eff = document.getElementById('statEff').innerText;
-                const boxD = `${document.getElementById('boxL').value}x${document.getElementById('boxW').value}x${document.getElementById('boxH').value}mm`;
-                const itemD = `${document.getElementById('itemL').value}x${document.getElementById('itemW').value}x${document.getElementById('itemH').value}mm`;
-                
-                doc.setDrawColor(200);
-                doc.setFillColor(245, 247, 250);
-                doc.rect(15, 30, 180, 25, 'F');
-                doc.text(`纸箱: ${boxD}`, 20, 40);
-                doc.text(`内盒: ${itemD}`, 100, 40);
-                doc.setFont("helvetica", "bold");
-                doc.text(`装箱数量: ${count}`, 20, 50);
-                doc.text(`体积利用率: ${eff}`, 100, 50);
-                
-                // --- 图像区域 (2x2 布局) ---
-                // 左上：空纸箱
-                doc.setFontSize(10);
-                doc.setFont("helvetica", "normal");
-                doc.text("1. 空纸箱视图 (Empty Box)", 20, 65);
-                doc.addImage(imgEmpty, 'JPEG', 20, 70, 80, 60);
-                
-                // 右上：尺寸标注
-                doc.text("2. 尺寸示意图 (Dimension View)", 110, 65);
-                doc.addImage(imgDim, 'JPEG', 110, 70, 80, 60);
-                
-                // 左下：满装效果
-                doc.text("3. 满装视图 (Full Load View)", 20, 140);
-                doc.addImage(imgFull, 'JPEG', 20, 145, 80, 60);
-                
-                // 右下：装箱说明
-                doc.text("4. 装箱策略 (Strategy)", 110, 140);
-                const stratName = document.getElementById('stackStrategy').options[document.getElementById('stackStrategy').selectedIndex].text;
-                doc.setFontSize(9);
-                doc.text(`- 策略: ${stratName}`, 110, 150);
-                doc.text(`- 对齐: ${document.getElementById('alignStrategy').value}`, 110, 156);
-                doc.text(`- 间隙: ${document.getElementById('itemGap').value} mm`, 110, 162);
-                doc.text(`- 堆叠层数: ${Math.floor(parseFloat(document.getElementById('boxH').value)/parseFloat(document.getElementById('itemH').value))} 层`, 110, 168);
+                pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+                pdf.save('堆码方案报告.pdf');
 
-                // --- 底部：明细表格 ---
-                doc.addPage();
-                doc.text("装载明细数据 (Packing List)", 15, 15);
-                
-                const headers = [['Index', 'X (mm)', 'Y (mm)', 'Z (mm)', 'Size (WxHxD)']];
-                const rows = [];
-                let idx = 1;
-                itemsGroup.children.forEach(mesh => {
-                    if(mesh.geometry) { 
-                        const p = mesh.position;
-                        const s = mesh.geometry.parameters;
-                        rows.push([
-                            idx++,
-                            Math.round(p.x), Math.round(p.y), Math.round(p.z),
-                            `${Math.round(s.width)}x${Math.round(s.height)}x${Math.round(s.depth)}`
-                        ]);
-                    }
-                });
-                
-                doc.autoTable({
-                    head: headers, body: rows.slice(0, 1000), // 限制行数防止崩溃
-                    startY: 20, theme: 'grid', styles: { fontSize: 8 }, headStyles: { fillColor: [52, 152, 219] }
-                });
-
-                doc.save('Stacking_Report_V9.pdf');
-            } catch (e) {
-                alert("生成报告出错: " + e.message);
+            } catch (err) {
+                alert("生成失败: " + err.message);
+                console.error(err);
             } finally {
                 document.getElementById('loadingOverlay').style.display = 'none';
             }
-        }, 100);
+        }, 200);
     }
 
+    // --- 动画逻辑修复版 ---
     function playAnimation() {
         if(!itemsGroup.children.length) return;
         
-        // 1. 隐藏所有
+        // 1. 初始化队列
         animQueue = [];
+        // 排序：Y轴(层) -> Z轴(里外) -> X轴(左右)
         const children = itemsGroup.children.slice().sort((a,b) => {
-            // 排序：先下后上(Y)，先里后外(Z)，先左后右(X)
             if(Math.abs(a.position.y - b.position.y) > 1) return a.position.y - b.position.y;
             if(Math.abs(a.position.z - b.position.z) > 1) return a.position.z - b.position.z;
             return a.position.x - b.position.x;
@@ -393,8 +450,9 @@ html_code = r"""
         
         children.forEach(c => {
             c.visible = false;
-            c.userData.finalY = c.position.y; // 记录最终位置
-            c.position.y += 200; // 抬高，做掉落效果
+            c.userData.finalY = c.position.y; // 记录最终落地高度
+            c.position.y += 250; // 抬高到空中
+            c.userData.isSettled = false; // 标记是否落地
             animQueue.push(c);
         });
 
@@ -405,6 +463,7 @@ html_code = r"""
         isOpen = true; // 强制开箱
     }
 
+    // --- Three.js 基础逻辑 ---
     function setSizeMode(m) {
         sizeMode = m;
         document.getElementById('mode-outer').classList.toggle('active', m === 'outer');
@@ -448,102 +507,63 @@ html_code = r"""
         s.position.copy(d1.clone().lerp(d2,0.5)).add(offD.clone().multiplyScalar(15)); g.add(s); return g;
     }
 
+    // 核心算法
     const memo = {};
     function solveGuillotine(rectL, rectW, l, w) {
         const key = Math.round(rectL * 1000) + "x" + Math.round(rectW * 1000);
         if (memo[key] !== undefined) return memo[key];
         if (rectL < Math.min(l, w) - 0.001 || rectW < Math.min(l, w) - 0.001) return { n: 0, items: [] };
-
         let bestSol = { n: 0, items: [] };
         let n_lw = Math.floor(rectL / l) * Math.floor(rectW / w);
-        if (n_lw > bestSol.n) {
-            let its = []; for(let i=0;i<Math.floor(rectL/l);i++) for(let j=0;j<Math.floor(rectW/w);j++) its.push({x:i*l, z:j*w, w:l, d:w});
-            bestSol = {n: n_lw, items: its};
-        }
+        if (n_lw > bestSol.n) { let its = []; for(let i=0;i<Math.floor(rectL/l);i++) for(let j=0;j<Math.floor(rectW/w);j++) its.push({x:i*l, z:j*w, w:l, d:w}); bestSol = {n: n_lw, items: its}; }
         let n_wl = Math.floor(rectL / w) * Math.floor(rectW / l);
-        if (n_wl > bestSol.n) {
-            let its = []; for(let i=0;i<Math.floor(rectL/w);i++) for(let j=0;j<Math.floor(rectW/l);j++) its.push({x:i*w, z:j*l, w:w, d:l});
-            bestSol = {n: n_wl, items: its};
-        }
-
+        if (n_wl > bestSol.n) { let its = []; for(let i=0;i<Math.floor(rectL/w);i++) for(let j=0;j<Math.floor(rectW/l);j++) its.push({x:i*w, z:j*l, w:w, d:l}); bestSol = {n: n_wl, items: its}; }
         if (rectL >= l && rectW >= w) {
             let maxCols = Math.floor(rectL / l);
             for (let i = 1; i <= maxCols; i++) {
-                let colWidth = i * l;
-                let itemsPerCol = Math.floor(rectW / w);
-                let currentN = i * itemsPerCol;
-                let currentItems = [];
+                let colWidth = i * l; let itemsPerCol = Math.floor(rectW / w); let currentN = i * itemsPerCol; let currentItems = [];
                 for (let c = 0; c < i; c++) for (let r = 0; r < itemsPerCol; r++) currentItems.push({ x: c * l, z: r * w, w: l, d: w });
                 let resRight = solveGuillotine(rectL - colWidth, rectW, l, w);
-                if (currentN + resRight.n > bestSol.n) {
-                    let shiftedRight = resRight.items.map(it => ({ ...it, x: it.x + colWidth }));
-                    bestSol = { n: currentN + resRight.n, items: [...currentItems, ...shiftedRight] };
-                }
+                if (currentN + resRight.n > bestSol.n) { let shiftedRight = resRight.items.map(it => ({ ...it, x: it.x + colWidth })); bestSol = { n: currentN + resRight.n, items: [...currentItems, ...shiftedRight] }; }
             }
         }
         if (rectL >= w && rectW >= l) {
             let maxCols = Math.floor(rectL / w);
             for (let i = 1; i <= maxCols; i++) {
-                let colWidth = i * w;
-                let itemsPerCol = Math.floor(rectW / l);
-                let currentN = i * itemsPerCol;
-                let currentItems = [];
+                let colWidth = i * w; let itemsPerCol = Math.floor(rectW / l); let currentN = i * itemsPerCol; let currentItems = [];
                 for (let c = 0; c < i; c++) for (let r = 0; r < itemsPerCol; r++) currentItems.push({ x: c * w, z: r * l, w: w, d: l });
                 let resRight = solveGuillotine(rectL - colWidth, rectW, l, w);
-                if (currentN + resRight.n > bestSol.n) {
-                    let shiftedRight = resRight.items.map(it => ({ ...it, x: it.x + colWidth }));
-                    bestSol = { n: currentN + resRight.n, items: [...currentItems, ...shiftedRight] };
-                }
+                if (currentN + resRight.n > bestSol.n) { let shiftedRight = resRight.items.map(it => ({ ...it, x: it.x + colWidth })); bestSol = { n: currentN + resRight.n, items: [...currentItems, ...shiftedRight] }; }
             }
         }
-
         if (rectW >= w && rectL >= l) {
             let maxRows = Math.floor(rectW / w);
             for (let j = 1; j <= maxRows; j++) {
-                let rowHeight = j * w;
-                let itemsPerRow = Math.floor(rectL / l);
-                let currentN = j * itemsPerRow;
-                let currentItems = [];
+                let rowHeight = j * w; let itemsPerRow = Math.floor(rectL / l); let currentN = j * itemsPerRow; let currentItems = [];
                 for (let r = 0; r < j; r++) for (let c = 0; c < itemsPerRow; c++) currentItems.push({ x: c * l, z: r * w, w: l, d: w });
                 let resBottom = solveGuillotine(rectL, rectW - rowHeight, l, w);
-                if (currentN + resBottom.n > bestSol.n) {
-                    let shiftedBottom = resBottom.items.map(it => ({ ...it, z: it.z + rowHeight }));
-                    bestSol = { n: currentN + resBottom.n, items: [...currentItems, ...shiftedBottom] };
-                }
+                if (currentN + resBottom.n > bestSol.n) { let shiftedBottom = resBottom.items.map(it => ({ ...it, z: it.z + rowHeight })); bestSol = { n: currentN + resBottom.n, items: [...currentItems, ...shiftedBottom] }; }
             }
         }
         if (rectW >= l && rectL >= w) {
             let maxRows = Math.floor(rectW / l);
             for (let j = 1; j <= maxRows; j++) {
-                let rowHeight = j * l;
-                let itemsPerRow = Math.floor(rectL / w);
-                let currentN = j * itemsPerRow;
-                let currentItems = [];
+                let rowHeight = j * l; let itemsPerRow = Math.floor(rectL / w); let currentN = j * itemsPerRow; let currentItems = [];
                 for (let r = 0; r < j; r++) for (let c = 0; c < itemsPerRow; c++) currentItems.push({ x: c * w, z: r * l, w: w, d: l });
                 let resBottom = solveGuillotine(rectL, rectW - rowHeight, l, w);
-                if (currentN + resBottom.n > bestSol.n) {
-                    let shiftedBottom = resBottom.items.map(it => ({ ...it, z: it.z + rowHeight }));
-                    bestSol = { n: currentN + resBottom.n, items: [...currentItems, ...shiftedBottom] };
-                }
+                if (currentN + resBottom.n > bestSol.n) { let shiftedBottom = resBottom.items.map(it => ({ ...it, z: it.z + rowHeight })); bestSol = { n: currentN + resBottom.n, items: [...currentItems, ...shiftedBottom] }; }
             }
         }
-        memo[key] = bestSol;
-        return bestSol;
+        memo[key] = bestSol; return bestSol;
     }
-
-    function solveUltra(L, W, l, w) {
-        for (var member in memo) delete memo[member]; 
-        return solveGuillotine(L, W, l, w);
-    }
+    function solveUltra(L, W, l, w) { for (var member in memo) delete memo[member]; return solveGuillotine(L, W, l, w); }
 
     function updateAndRender() {
-        isAnimating = false; // 停止动画
-        
+        isAnimating = false; // 停止旧动画
         const inputL=parseFloat(document.getElementById('boxL').value), inputW=parseFloat(document.getElementById('boxW').value), inputH=parseFloat(document.getElementById('boxH').value);
         const wall=parseFloat(document.getElementById('wallThick').value);
         const gap=parseFloat(document.getElementById('itemGap').value) || 0;
         const bulgeVal = parseFloat(document.getElementById('bulgeVal').value) || 0;
-        
         const showE=document.getElementById('showEdges').checked, showH=document.getElementById('hasHandle').checked;
         const useLayerColor = document.getElementById('layerColor').checked;
         const strat=document.getElementById('stackStrategy').value, align=document.getElementById('alignStrategy').value;
@@ -551,31 +571,20 @@ html_code = r"""
         let vL, vW, vH, rL, rW, rH;
         if(sizeMode === 'outer') { vL = inputL; vW = inputW; vH = inputH; rL = vL - wall*2; rW = vW - wall*2; rH = vH - wall*2; }
         else { rL = inputL; rW = inputW; rH = inputH; vL = rL + wall*2; vW = rW + wall*2; vH = rH + wall*2; }
-
-        const effectiveRL = rL + bulgeVal;
-        const effectiveRW = rW + bulgeVal;
-        const effectiveRH = rH + bulgeVal;
+        const effectiveRL = rL + bulgeVal; const effectiveRW = rW + bulgeVal; const effectiveRH = rH + bulgeVal;
 
         boxGroup.clear(); itemsGroup.clear(); labelGroup.clear(); flaps=[];
         const bMat=new THREE.MeshPhongMaterial({color:0xd2a679,side:THREE.DoubleSide}); 
         const hMat=new THREE.MeshPhongMaterial({map:getHandleTexture(),side:THREE.DoubleSide});
 
-        const addB=(geo,x,y,z,h=false)=>{ 
-            const m=new THREE.Mesh(geo,h&&showH?hMat:bMat); m.position.set(x,y,z); 
-            if(showE) m.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo),edgeMat)); boxGroup.add(m); return m; 
-        };
-        addB(new THREE.BoxGeometry(vL,wall,vW),0,0,0); 
-        addB(new THREE.BoxGeometry(vL,vH,wall),0,vH/2,-vW/2); 
-        const sideL = addB(new THREE.BoxGeometry(wall,vH,vW),-vL/2,vH/2,0,true); 
-        const sideR = addB(new THREE.BoxGeometry(wall,vH,vW),vL/2,vH/2,0,true);
+        const addB=(geo,x,y,z,h=false)=>{ const m=new THREE.Mesh(geo,h&&showH?hMat:bMat); m.position.set(x,y,z); if(showE) m.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo),edgeMat)); boxGroup.add(m); return m; };
+        addB(new THREE.BoxGeometry(vL,wall,vW),0,0,0); addB(new THREE.BoxGeometry(vL,vH,wall),0,vH/2,-vW/2); 
+        const sideL = addB(new THREE.BoxGeometry(wall,vH,vW),-vL/2,vH/2,0,true); const sideR = addB(new THREE.BoxGeometry(wall,vH,vW),vL/2,vH/2,0,true);
         const front = addB(new THREE.BoxGeometry(vL,vH,wall),0,vH/2,vW/2);
 
         const lpMat = new THREE.MeshPhongMaterial({color:labelTexture?0xffffff:0xccaa88,map:labelTexture,transparent:true});
         const loMat = new THREE.MeshPhongMaterial({color:logoTexture?0xffffff:0xff0000,map:logoTexture,transparent:true});
-        const addPI = (parent, geo, mat, face) => {
-            const m = new THREE.Mesh(geo, mat); m.userData.isInteractable = true; m.userData.face = face; 
-            parent.add(m); return m;
-        };
+        const addPI = (parent, geo, mat, face) => { const m = new THREE.Mesh(geo, mat); m.userData.isInteractable = true; m.userData.face = face; parent.add(m); return m; };
         if(showL1) addPI(front, new THREE.BoxGeometry(100,80,1), lpMat, 'front').position.set(80, 0, wall/2+0.5);
         if(showLogo1) addPI(front, new THREE.BoxGeometry(60,60,1), loMat, 'front').position.set(-100, 100, wall/2+0.5);
         if(showL2) addPI(sideR, new THREE.BoxGeometry(1,80,100), lpMat, 'side').position.set(wall/2+0.5, 0, 0);
@@ -589,8 +598,7 @@ html_code = r"""
         addF(vL,vW/2,0,vW/2,'x',1,'long'); addF(vL,vW/2,0,-vW/2,'x',-1,'long'); addF(vL/2,vW,vL/2,0,'z',1,'short'); addF(vL/2,vW,-vL/2,0,'z',-1,'short');
 
         const iL=parseFloat(document.getElementById('itemL').value), iW=parseFloat(document.getElementById('itemW').value), iH=parseFloat(document.getElementById('itemH').value);
-        const calcRL = effectiveRL + gap; const calcRW = effectiveRW + gap;
-        const effL = iL + gap; const effW = iW + gap;
+        const calcRL = effectiveRL + gap; const calcRW = effectiveRW + gap; const effL = iL + gap; const effW = iW + gap;
 
         let layerResult;
         if (strat === 'ultra') layerResult = solveUltra(calcRL, calcRW, effL, effW); 
@@ -606,28 +614,20 @@ html_code = r"""
 
         const nY = Math.floor(effectiveRH / iH);
         const total = layerResult.n * nY;
-        
         document.getElementById('statCount').innerText=total+" pcs";
         document.getElementById('statEff').innerText=(total*iL*iW*iH/(vL*vW*vH)*100).toFixed(1)+"%";
         document.getElementById('effFill').style.width=Math.min(100, parseFloat(document.getElementById('statEff').innerText)) + "%";
 
-        let bBoxL = 0, bBoxW = 0;
-        layerResult.items.forEach(it => { bBoxL = Math.max(bBoxL, it.x + it.w); bBoxW = Math.max(bBoxW, it.z + it.d); });
-        
-        let offX = (align === 'center') ? (effectiveRL - bBoxL)/2 : 0;
-        let offZ = (align === 'center') ? (effectiveRW - bBoxW)/2 : 0;
-        const startX = -rL/2 + offX;
-        const startZ = -rW/2 + offZ;
+        let bBoxL = 0, bBoxW = 0; layerResult.items.forEach(it => { bBoxL = Math.max(bBoxL, it.x + it.w); bBoxW = Math.max(bBoxW, it.z + it.d); });
+        let offX = (align === 'center') ? (effectiveRL - bBoxL)/2 : 0; let offZ = (align === 'center') ? (effectiveRW - bBoxW)/2 : 0;
+        const startX = -rL/2 + offX; const startZ = -rW/2 + offZ;
 
         for(let y=0; y<nY; y++) {
             const currentColor = useLayerColor ? layerColors[y % layerColors.length] : 0x3498db;
             const iMat = new THREE.MeshPhongMaterial({ color: currentColor });
-
             layerResult.items.forEach(it => {
-                const realW = it.w - gap;
-                const realD = it.d - gap;
-                const geo = new THREE.BoxGeometry(realW, iH, realD); 
-                const m = new THREE.Mesh(geo, iMat);
+                const realW = it.w - gap; const realD = it.d - gap;
+                const geo = new THREE.BoxGeometry(realW, iH, realD); const m = new THREE.Mesh(geo, iMat);
                 m.position.set(startX + it.x + realW/2, y*iH + iH/2 + wall/2, startZ + it.z + realD/2);
                 if(showE) m.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo),edgeMat)); 
                 itemsGroup.add(m);
@@ -638,18 +638,12 @@ html_code = r"""
             labelGroup.add(createDimLabel(vH.toString(),new THREE.Vector3(-vL/2,0,vW/2),new THREE.Vector3(-vL/2,vH,vW/2),new THREE.Vector3(-1,0,0),50));
             labelGroup.add(createDimLabel(vW.toString(),new THREE.Vector3(vL/2,0,-vW/2),new THREE.Vector3(vL/2,0,vW/2),new THREE.Vector3(1,0,0),50));
         }
-        updateOpacity();
-        updateMiniView(iL, iW, iH);
+        updateOpacity(); updateMiniView(iL, iW, iH);
     }
 
     function updateMiniView(l, w, h) {
-        if(!miniItemContainer) return;
-        miniItemContainer.clear();
-        const mat = new THREE.MeshPhongMaterial({color: 0x3498db});
-        const geo = new THREE.BoxGeometry(l, h, w);
-        const m = new THREE.Mesh(geo, mat);
-        m.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat));
-        miniItemContainer.add(m);
+        if(!miniItemContainer) return; miniItemContainer.clear();
+        const mat = new THREE.MeshPhongMaterial({color: 0x3498db}); const geo = new THREE.BoxGeometry(l, h, w); const m = new THREE.Mesh(geo, mat); m.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat)); miniItemContainer.add(m);
         miniItemContainer.add(createDimLabel(l.toString(), new THREE.Vector3(-l/2,-h/2,w/2), new THREE.Vector3(l/2,-h/2,w/2), new THREE.Vector3(0,-1,0), 20, '#e67e22'));
         miniItemContainer.add(createDimLabel(w.toString(), new THREE.Vector3(l/2,-h/2,w/2), new THREE.Vector3(l/2,-h/2,-w/2), new THREE.Vector3(1,0,0), 20, '#e67e22'));
     }
@@ -658,60 +652,39 @@ html_code = r"""
         initPresets();
         const v=document.getElementById('viewport'); scene=new THREE.Scene(); scene.background=new THREE.Color(0xeef2f3);
         camera=new THREE.PerspectiveCamera(45,v.clientWidth/v.clientHeight,1,10000); camera.position.set(600,600,600);
-        renderer=new THREE.WebGLRenderer({antialias:true, preserveDrawingBuffer: true}); 
-        renderer.setSize(v.clientWidth,v.clientHeight); v.appendChild(renderer.domElement);
+        renderer=new THREE.WebGLRenderer({antialias:true, preserveDrawingBuffer: true}); renderer.setSize(v.clientWidth,v.clientHeight); v.appendChild(renderer.domElement);
         controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true;
         controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.DOLLY };
         tfControls = new THREE.TransformControls(camera, renderer.domElement);
-        tfControls.addEventListener('dragging-changed', (e) => { controls.enabled = !e.value; });
-        scene.add(tfControls);
+        tfControls.addEventListener('dragging-changed', (e) => { controls.enabled = !e.value; }); scene.add(tfControls);
         tfControls.addEventListener('objectChange', () => {
-            const obj = tfControls.object; if(!obj) return;
-            const wall = parseFloat(document.getElementById('wallThick').value);
-            if(obj.userData.face === 'front') { obj.position.z = wall/2 + 0.5; obj.scale.z = 1; }
-            else if(obj.userData.face === 'side') { obj.position.x = wall/2 + 0.5; obj.scale.x = 1; }
+            const obj = tfControls.object; if(!obj) return; const wall = parseFloat(document.getElementById('wallThick').value);
+            if(obj.userData.face === 'front') { obj.position.z = wall/2 + 0.5; obj.scale.z = 1; } else if(obj.userData.face === 'side') { obj.position.x = wall/2 + 0.5; obj.scale.x = 1; }
         });
         raycaster = new THREE.Raycaster(); mouse = new THREE.Vector2();
         renderer.domElement.addEventListener('pointerdown', (e) => {
             if (e.button !== 0) return;
             const rect = renderer.domElement.getBoundingClientRect();
-            mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-            mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+            mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1; mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
             raycaster.setFromCamera(mouse, camera);
             const intersects = raycaster.intersectObjects(targetGroup.children, true);
             const target = intersects.find(i => i.object.userData.isInteractable);
-            if(target) {
-                tfControls.attach(target.object);
-                if(target.object.userData.face === 'front') { tfControls.showZ = false; tfControls.showX = true; tfControls.showY = true; }
-                else { tfControls.showX = false; tfControls.showZ = true; tfControls.showY = true; }
-            } else if(!tfControls.dragging) tfControls.detach();
+            if(target) { tfControls.attach(target.object); if(target.object.userData.face === 'front') { tfControls.showZ = false; tfControls.showX = true; tfControls.showY = true; } else { tfControls.showX = false; tfControls.showZ = true; tfControls.showY = true; } } else if(!tfControls.dragging) tfControls.detach();
         });
-        window.addEventListener('keydown', (e) => {
-            const k = e.key.toLowerCase();
-            if(k === 'w') tfControls.setMode('translate');
-            if(k === 'e') tfControls.setMode('scale');
-        });
-        
-        document.querySelectorAll('.calc-trigger').forEach(input => {
-            input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { input.blur(); updateAndRender(); } });
-        });
-
-        scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-        const dl=new THREE.DirectionalLight(0xffffff, 0.8); dl.position.set(200, 500, 300); scene.add(dl);
-        targetGroup=new THREE.Group(); boxGroup=new THREE.Group(); itemsGroup=new THREE.Group(); labelGroup=new THREE.Group();
-        targetGroup.add(boxGroup,itemsGroup,labelGroup); scene.add(targetGroup); initMini();
+        window.addEventListener('keydown', (e) => { const k = e.key.toLowerCase(); if(k === 'w') tfControls.setMode('translate'); if(k === 'e') tfControls.setMode('scale'); });
+        document.querySelectorAll('.calc-trigger').forEach(input => { input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { input.blur(); updateAndRender(); } }); });
+        scene.add(new THREE.AmbientLight(0xffffff, 0.7)); const dl=new THREE.DirectionalLight(0xffffff, 0.8); dl.position.set(200, 500, 300); scene.add(dl);
+        targetGroup=new THREE.Group(); boxGroup=new THREE.Group(); itemsGroup=new THREE.Group(); labelGroup=new THREE.Group(); targetGroup.add(boxGroup,itemsGroup,labelGroup); scene.add(targetGroup); initMini();
         document.getElementById('toggleBtn').onclick=()=>{isOpen=!isOpen; document.getElementById('toggleBtn').innerText=isOpen?"关闭纸箱":"开启纸箱";};
         window.addEventListener('resize',()=>{ camera.aspect=v.clientWidth/v.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(v.clientWidth,v.clientHeight); });
         
         updateAndRender(); animate();
     }
-
     function initMini(){
         const mv=document.getElementById('mini-viewport'); miniScene=new THREE.Scene(); miniScene.background=new THREE.Color(0xffffff);
         miniCamera=new THREE.PerspectiveCamera(45,1,1,2000); miniCamera.position.set(240,180,240);
         miniRenderer=new THREE.WebGLRenderer({antialias:true}); miniRenderer.setSize(220,220); mv.appendChild(miniRenderer.domElement);
-        miniControls = new THREE.OrbitControls(miniCamera, miniRenderer.domElement);
-        miniScene.add(new THREE.AmbientLight(0xffffff,0.9)); miniItemContainer=new THREE.Group(); miniScene.add(miniItemContainer);
+        miniControls = new THREE.OrbitControls(miniCamera, miniRenderer.domElement); miniScene.add(new THREE.AmbientLight(0xffffff,0.9)); miniItemContainer=new THREE.Group(); miniScene.add(miniItemContainer);
     }
 
     function animate(){
@@ -719,38 +692,47 @@ html_code = r"""
         const tA=isOpen?Math.PI*0.8:0; 
         const lF=flaps.filter(f=>f.type==='long'), sF=flaps.filter(f=>f.type==='short');
         flaps.forEach(f=>{
-            let m=false; if(isOpen){ if(f.type==='long') m=true; else if(f.type==='short'&&lF[0].currentAng>0.4) m=true; }
-            else{ if(f.type==='short') m=true; else if(f.type==='long'&&sF[0].currentAng<0.2) m=true; }
+            let m=false; if(isOpen){ if(f.type==='long') m=true; else if(f.type==='short'&&lF[0].currentAng>0.4) m=true; } else{ if(f.type==='short') m=true; else if(f.type==='long'&&sF[0].currentAng<0.2) m=true; }
             if(m) f.currentAng+=(tA-f.currentAng)*0.1;
             if(f.axis==='x')f.pivot.rotation.x=f.currentAng*f.dir; else f.pivot.rotation.z=-f.currentAng*f.dir;
         });
 
-        // --- 修复后的动画逻辑 ---
+        // --- 核心修复：动画逻辑分离 ---
+        // 1. 队列投放逻辑
         if(isAnimating && animQueue.length > 0) {
-            animFrameCounter++;
-            if(animFrameCounter > ANIM_DELAY) { // 延迟控制
-                animFrameCounter = 0;
-                if(animIndex < animQueue.length) {
-                    const item = animQueue[animIndex];
-                    item.visible = true;
-                    // 简单的下落动画逻辑 (每帧逼近 finalY)
-                    // 这里我们为了简单起见，直接显示，或者在这里启动一个 tween
-                    // 但为了性能，我们这里只做显示，配合下面的 else 逻辑做移动
+            if(animIndex < animQueue.length) {
+                animFrameCounter++;
+                if(animFrameCounter > 3) { // 投放速度
+                    animFrameCounter = 0;
+                    animQueue[animIndex].visible = true;
                     animIndex++;
-                } else {
-                    isAnimating = false; // 队列处理完毕，但物体可能还在下落，这里简化为结束
                 }
             }
-            
-            // 处理所有已显示物体的下落动画
+        }
+
+        // 2. 物理下落逻辑 (独立运行)
+        // 只要有任何一个物体还没有“落地”，我们就继续执行下落逻辑，防止悬空
+        let activeFalling = false;
+        if(isAnimating || animIndex > 0) {
+            // 遍历所有已经投放（可见）的物体
             for(let i=0; i<animIndex; i++) {
                 const item = animQueue[i];
-                if(item.position.y > item.userData.finalY + 0.1) {
-                    item.position.y += (item.userData.finalY - item.position.y) * 0.2; // 缓动下落
+                if(item.userData.isSettled) continue; // 已经落地的跳过
+
+                // 如果还没落地
+                if(item.position.y > item.userData.finalY + 0.5) {
+                    item.position.y += (item.userData.finalY - item.position.y) * 0.15; // 缓动下落
+                    activeFalling = true; // 只要有一个在动，动画就没结束
                 } else {
-                    item.position.y = item.userData.finalY; // 修正到位
+                    item.position.y = item.userData.finalY; // 强制归位
+                    item.userData.isSettled = true;
                 }
             }
+        }
+
+        // 只有当所有物体都投放完毕 AND 所有物体都落地了，才真正停止动画状态
+        if(animIndex === animQueue.length && !activeFalling) {
+            isAnimating = false;
         }
 
         controls.update(); if (miniControls) miniControls.update();
